@@ -10,6 +10,8 @@ import re
 import argparse
 from pathlib import Path
 import time
+import logging
+from datetime import datetime
 
 
 def is_video_file(filename):
@@ -97,6 +99,7 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     Returns:
         (success_count, error_count, show_name)
     """
+    start_time = time.time()
     torrent_path = Path(torrent_dir)
     channels_base = Path(channels_tv_base)
     
@@ -106,6 +109,7 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     
     print(f"\n{'='*60}")
     print(f"Processing: {torrent_path.name}")
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
     print(f"{'='*60}\n")
     
@@ -215,9 +219,14 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     elif not dry_run and error_count > 0:
         print(f"⚠ Skipping cleanup due to errors - directory will be retried next run")
     
+    elapsed_time = time.time() - start_time
     print(f"{'='*60}")
     print(f"Summary: {success_count} succeeded, {error_count} failed")
+    print(f"Processing time: {elapsed_time:.2f} seconds")
+    print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
+    
+    logging.info(f"Processed '{torrent_path.name}': {success_count} succeeded, {error_count} failed in {elapsed_time:.2f}s")
     
     return (success_count, error_count, show_name)
 
@@ -360,14 +369,17 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
         transmission_username: Transmission username
         transmission_password: Transmission password
     """
+    batch_start_time = time.time()
     watch_path = Path(watch_dir)
     
     if not watch_path.exists():
         print(f"Error: Watch directory not found: {watch_dir}")
         return
     
+    logging.info(f"Starting batch processing: {watch_dir}")
     print(f"Scanning: {watch_dir}")
-    print(f"Target: {channels_tv_base}\n")
+    print(f"Target: {channels_tv_base}")
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
     total_success = 0
     total_errors = 0
@@ -414,13 +426,19 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
                 password=transmission_password
             )
     
+    batch_elapsed = time.time() - batch_start_time
+    
     if processed_count == 0:
         print("No completed downloads to process.")
+        logging.info(f"Batch complete: No downloads to process")
     else:
         print(f"\n{'='*60}")
         print(f"TOTAL: Processed {processed_count} torrent(s)")
         print(f"       {total_success} file(s) succeeded, {total_errors} failed")
+        print(f"Total processing time: {batch_elapsed:.2f} seconds")
+        print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*60}")
+        logging.info(f"Batch complete: {processed_count} torrents, {total_success} succeeded, {total_errors} failed in {batch_elapsed:.2f}s")
 
 
 def main():
@@ -442,6 +460,10 @@ Examples:
   %(prog)s monitor /Volumes/cloud2-nas/temp-downloads /mnt/cloud2-nas/Imported-TV
         """
     )
+    
+    parser.add_argument('--log-file', help='Log file path (default: transmission_postprocess.log)')
+    parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                       help='Logging level (default: INFO)')
     
     subparsers = parser.add_subparsers(dest='command', help='Command')
     
@@ -466,6 +488,17 @@ Examples:
     monitor_parser.add_argument('--show-name', help='Override auto-detected show name')
     
     args = parser.parse_args()
+    
+    # Setup logging
+    log_file = args.log_file or 'transmission_postprocess.log'
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()  # Also log to console
+        ]
+    )
     
     if not args.command:
         parser.print_help()
