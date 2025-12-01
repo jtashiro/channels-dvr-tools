@@ -141,14 +141,14 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     channels_base = Path(channels_tv_base)
     
     if not torrent_path.exists():
-        print(f"Error: Torrent directory not found: {torrent_dir}")
+        logging.error(f"Torrent directory not found: {torrent_dir}")
         return (0, 1, None)
     
-    print(f"\n{'='*60}")
-    print(f"Processing: {torrent_path.name}")
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
-    print(f"{'='*60}\n")
+    logging.info("="*60)
+    logging.info(f"Processing: {torrent_path.name}")
+    logging.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logging.info(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+    logging.info("="*60)
     
     # Find all video files
     video_files = []
@@ -157,20 +157,20 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
             video_files.append(item)
     
     if not video_files:
-        print("No video files found!")
+        logging.error("No video files found!")
         return (0, 1, None)
     
-    print(f"Found {len(video_files)} video file(s)")
+    logging.info(f"Found {len(video_files)} video file(s)")
     
     # Determine show name from first video
     first_video = video_files[0]
     show_name = show_name_override or extract_show_name(first_video.name)
     
     if not show_name:
-        print("Error: Could not determine show name!")
+        logging.error("Could not determine show name!")
         return (0, len(video_files), None)
     
-    print(f"Show name: {show_name}\n")
+    logging.info(f"Show name: {show_name}")
     
     # Create show directory
     show_dir = channels_base / show_name
@@ -179,22 +179,22 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     error_count = 0
     
     for video_file in video_files:
-        print(f"Processing: {video_file.name}")
+        logging.info(f"Processing: {video_file.name}")
         
         # Extract episode info
         ep_info = extract_episode_info(video_file.name)
         
         if not ep_info:
-            print(f"  ⚠ Could not extract episode info, keeping original name")
+            logging.warning(f"  Could not extract episode info, keeping original name")
             target_filename = video_file.name
         else:
             season, episode = ep_info
             target_filename = build_episode_filename(show_name, season, episode, video_file.name)
-            print(f"  → S{season:02d}E{episode:02d}")
+            logging.info(f"  → S{season:02d}E{episode:02d}")
         
         target_path = show_dir / target_filename
         
-        print(f"  Target: {target_path}")
+        logging.info(f"  Target: {target_path}")
         
         if not dry_run:
             try:
@@ -209,24 +209,22 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
                 try:
                     video_file.unlink()
                 except OSError as del_err:
-                    print(f"  ⚠ Warning: File copied but could not delete original: {del_err}")
-                    print(f"    Original file: {video_file}")
+                    logging.warning(f"  File copied but could not delete original: {del_err}")
+                    logging.warning(f"    Original file: {video_file}")
                 
-                print(f"  ✓ Moved successfully")
+                logging.info(f"  ✓ Moved successfully")
                 success_count += 1
             except PermissionError as e:
-                print(f"  ✗ Permission Error: {e}")
-                print(f"    Check file permissions on: {video_file}")
-                print(f"    Try: sudo chown -R $USER '{torrent_path}'")
+                logging.error(f"  Permission Error: {e}")
+                logging.error(f"    Check file permissions on: {video_file}")
+                logging.error(f"    Try: sudo chown -R $USER '{torrent_path}'")
                 error_count += 1
             except Exception as e:
-                print(f"  ✗ Error: {e}")
+                logging.error(f"  Error: {e}")
                 error_count += 1
         else:
-            print(f"  [DRY RUN] Would move here")
+            logging.info(f"  [DRY RUN] Would move here")
             success_count += 1
-        
-        print()
     
     # Clean up empty torrent directory - only if all files succeeded
     if not dry_run and success_count > 0 and error_count == 0:
@@ -250,20 +248,18 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
             # Remove main directory if empty
             if not any(torrent_path.iterdir()):
                 torrent_path.rmdir()
-                print(f"✓ Cleaned up torrent directory")
+                logging.info(f"✓ Cleaned up torrent directory")
         except Exception as e:
-            print(f"⚠ Warning: Could not fully clean up torrent directory: {e}")
+            logging.warning(f"Could not fully clean up torrent directory: {e}")
     elif not dry_run and error_count > 0:
-        print(f"⚠ Skipping cleanup due to errors - directory will be retried next run")
+        logging.warning(f"Skipping cleanup due to errors - directory will be retried next run")
     
     elapsed_time = time.time() - start_time
-    print(f"{'='*60}")
-    print(f"Summary: {success_count} succeeded, {error_count} failed")
-    print(f"Processing time: {elapsed_time:.2f} seconds")
-    print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-    
-    logging.info(f"Processed '{torrent_path.name}': {success_count} succeeded, {error_count} failed in {elapsed_time:.2f}s")
+    logging.info("="*60)
+    logging.info(f"Summary: {success_count} succeeded, {error_count} failed")
+    logging.info(f"Processing time: {elapsed_time:.2f} seconds")
+    logging.info(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logging.info("="*60)
     
     return (success_count, error_count, show_name)
 
@@ -287,13 +283,13 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
     watch_path = Path(watch_dir)
     
     if not watch_path.exists():
-        print(f"Error: Watch directory not found: {watch_dir}")
+        logging.error(f"Watch directory not found: {watch_dir}")
         return
     
-    print(f"Monitoring: {watch_dir}")
-    print(f"Target: {channels_tv_base}")
-    print(f"Check interval: {interval} seconds")
-    print("Press Ctrl+C to stop\n")
+    logging.info(f"Monitoring: {watch_dir}")
+    logging.info(f"Target: {channels_tv_base}")
+    logging.info(f"Check interval: {interval} seconds")
+    logging.info("Press Ctrl+C to stop")
     
     processed = set()
     
@@ -317,7 +313,7 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
                 if not video_files:
                     continue
                 
-                print(f"Found completed download: {item.name}")
+                logging.info(f"Found completed download: {item.name}")
                 torrent_name = item.name
                 
                 # Process it
@@ -343,7 +339,7 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
             time.sleep(interval)
     
     except KeyboardInterrupt:
-        print("\n\nStopping monitor...")
+        logging.info("\n\nStopping monitor...")
 
 
 def remove_torrent_from_transmission(torrent_name, host='localhost', port=9091, username=None, password=None):
@@ -377,17 +373,17 @@ def remove_torrent_from_transmission(torrent_name, host='localhost', port=9091, 
             if torrent.name == torrent_name:
                 # Remove torrent and delete data
                 client.remove_torrent(torrent.id, delete_data=True)
-                print(f"  ✓ Removed from Transmission and deleted data")
+                logging.info(f"  ✓ Removed from Transmission and deleted data")
                 return True
         
-        print(f"  ⚠ Torrent not found in Transmission: {torrent_name}")
+        logging.warning(f"  Torrent not found in Transmission: {torrent_name}")
         return False
         
     except ImportError:
-        print(f"  ⚠ transmission-rpc not installed, cannot remove from Transmission")
+        logging.warning(f"  transmission-rpc not installed, cannot remove from Transmission")
         return False
     except Exception as e:
-        print(f"  ⚠ Error removing from Transmission: {e}")
+        logging.warning(f"  Error removing from Transmission: {e}")
         return False
 
 
@@ -410,13 +406,13 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
     watch_path = Path(watch_dir)
     
     if not watch_path.exists():
-        print(f"Error: Watch directory not found: {watch_dir}")
+        logging.error(f"Watch directory not found: {watch_dir}")
         return
     
     logging.info(f"Starting batch processing: {watch_dir}")
-    print(f"Scanning: {watch_dir}")
-    print(f"Target: {channels_tv_base}")
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    logging.info(f"Scanning: {watch_dir}")
+    logging.info(f"Target: {channels_tv_base}")
+    logging.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     total_success = 0
     total_errors = 0
@@ -430,7 +426,7 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
         # Check if directory looks complete (no .part files)
         part_files = list(item.rglob('*.part'))
         if part_files:
-            print(f"Skipping incomplete: {item.name} ({len(part_files)} .part files)")
+            logging.info(f"Skipping incomplete: {item.name} ({len(part_files)} .part files)")
             continue
         
         # Check if it has video files
@@ -438,7 +434,7 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
         if not video_files:
             continue
         
-        print(f"Processing: {item.name}")
+        logging.info(f"Processing: {item.name}")
         torrent_name = item.name
         
         # Process it
@@ -466,16 +462,14 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None,
     batch_elapsed = time.time() - batch_start_time
     
     if processed_count == 0:
-        print("No completed downloads to process.")
-        logging.info(f"Batch complete: No downloads to process")
+        logging.info("No completed downloads to process.")
     else:
-        print(f"\n{'='*60}")
-        print(f"TOTAL: Processed {processed_count} torrent(s)")
-        print(f"       {total_success} file(s) succeeded, {total_errors} failed")
-        print(f"Total processing time: {batch_elapsed:.2f} seconds")
-        print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"{'='*60}")
-        logging.info(f"Batch complete: {processed_count} torrents, {total_success} succeeded, {total_errors} failed in {batch_elapsed:.2f}s")
+        logging.info("="*60)
+        logging.info(f"TOTAL: Processed {processed_count} torrent(s)")
+        logging.info(f"       {total_success} file(s) succeeded, {total_errors} failed")
+        logging.info(f"Total processing time: {batch_elapsed:.2f} seconds")
+        logging.info(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logging.info("="*60)
 
 
 def main():
