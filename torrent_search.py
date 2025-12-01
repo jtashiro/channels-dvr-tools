@@ -285,19 +285,13 @@ def add_to_transmission(torrents, host='localhost', port=9091, username=None, pa
         
         # Determine download directory
         target_dir = download_dir
-        if not target_dir and ep_info:
-            # Extract show name for TV episodes
-            if not show_name:
-                show_name = extract_show_name(torrent['name'])
-            
-            # Build Channels DVR compatible path
-            # Default base: /Volumes/cloud2-nas/channels-dvr/TV
-            base_tv_dir = '/Volumes/cloud2-nas/channels-dvr/TV'
-            target_dir = f"{base_tv_dir}/{show_name}"
+        if not target_dir:
+            # Use temporary download location
+            # Default: /Volumes/cloud2-nas/temp-downloads/
+            target_dir = '/Volumes/cloud2-nas/temp-downloads'
             
             if debug:
-                print(f"[DEBUG] Auto-detected show: {show_name}")
-                print(f"[DEBUG] Target directory: {target_dir}")
+                print(f"[DEBUG] Using temp download directory: {target_dir}")
         
         # Build command
         cmd = ['python3', 'torrent_manager.py']
