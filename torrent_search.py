@@ -7,6 +7,46 @@ Note: Only use this for legal, non-copyrighted content.
 import requests
 from bs4 import BeautifulSoup
 import re
+import os
+import json
+from pathlib import Path
+
+
+def load_config(config_file='.config'):
+    """
+    Load configuration from a JSON config file.
+    
+    Expected format:
+    {
+        "transmission": {
+            "host": "localhost",
+            "port": 9091,
+            "username": "user",
+            "password": "pass"
+        }
+    }
+    
+    Args:
+        config_file: Path to config file (default: .config in current directory)
+    
+    Returns:
+        dict: Configuration dictionary or empty dict if file doesn't exist
+    """
+    config_path = Path(config_file)
+    
+    if not config_path.exists():
+        return {}
+    
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Warning: Invalid JSON in config file: {e}")
+        return {}
+    except Exception as e:
+        print(f"Warning: Error reading config file: {e}")
+        return {}
+
 
 def search_torrents(query, api_url='https://apibay.org', debug=False):
     """
@@ -322,10 +362,23 @@ def add_to_transmission(torrents, host='localhost', port=9091, username=None, pa
                     print(f"      → {target_dir}")
                 added_count += 1
             else:
-                print(f"      ✗ Failed: {result.stderr.strip()}")
+                # Collect all error information
+                error_msg = result.stderr.strip() or result.stdout.strip() or f"Exit code {result.returncode}"
+                print(f"      ✗ Failed: {error_msg}")
+                if debug:
+                    print(f"[DEBUG] Command: {' '.join(cmd)}")
+                    print(f"[DEBUG] Return code: {result.returncode}")
+                    print(f"[DEBUG] Stdout: {result.stdout}")
+                    print(f"[DEBUG] Stderr: {result.stderr}")
                 failed_count += 1
+        except subprocess.TimeoutExpired:
+            print(f"      ✗ Error: Command timed out after 30 seconds")
+            failed_count += 1
+        except FileNotFoundError:
+            print(f"      ✗ Error: torrent_manager.py not found or python3 not available")
+            failed_count += 1
         except Exception as e:
-            print(f"      ✗ Error: {e}")
+            print(f"      ✗ Error: {type(e).__name__}: {e}")
             failed_count += 1
     
     print(f"\n{'='*60}")
@@ -353,20 +406,48 @@ Examples:
   
   # Download to specific directory on remote Transmission
   %(prog)s --auto-download --host 192.168.1.100 --dir /downloads/shows
+
+Config File:
+  Create a .config file in the script directory with:
+  {
+    "transmission": {
+      "host": "localhost",
+      "port": 9091,
+      "username": "your_username",
+      "password": "your_password"
+    }
+  }
+  Command line arguments override config file settings.
         """
     )
     
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug output')
     parser.add_argument('--auto-download', action='store_true', help='Automatically add torrents to Transmission')
-    parser.add_argument('--host', default='localhost', help='Transmission host (default: localhost)')
-    parser.add_argument('--port', type=int, default=9091, help='Transmission port (default: 9091)')
-    parser.add_argument('--username', help='Transmission username')
-    parser.add_argument('--password', help='Transmission password')
+    parser.add_argument('--config', default='.config', help='Config file path (default: .config)')
+    parser.add_argument('--host', help='Transmission host (overrides config)')
+    parser.add_argument('--port', type=int, help='Transmission port (overrides config)')
+    parser.add_argument('--username', help='Transmission username (overrides config)')
+    parser.add_argument('--password', help='Transmission password (overrides config)')
     parser.add_argument('--dir', help='Download directory in Transmission (auto-detects for TV shows if not specified)')
     parser.add_argument('--show-name', help='Override auto-detected show name for directory structure')
     parser.add_argument('--query', help='Search query (skip interactive prompt)')
     
     args = parser.parse_args()
+    
+    # Load config file
+    config = load_config(args.config)
+    transmission_config = config.get('transmission', {})
+    
+    if args.debug and config:
+        print(f"[DEBUG] Loaded config from {args.config}")
+        if transmission_config:
+            print(f"[DEBUG] Transmission config: host={transmission_config.get('host')}, port={transmission_config.get('port')}, username={'***' if transmission_config.get('username') else 'None'}")
+    
+    # Merge config file and command line args (CLI args take precedence)
+    host = args.host or transmission_config.get('host', 'localhost')
+    port = args.port or transmission_config.get('port', 9091)
+    username = args.username or transmission_config.get('username')
+    password = args.password or transmission_config.get('password')
     
     # Example search
     query = args.query if args.query else input("Enter search term: ")
@@ -413,10 +494,10 @@ Examples:
         print("Adding torrents to Transmission...\n")
         add_to_transmission(
             unique_results,
-            host=args.host,
-            port=args.port,
-            username=args.username,
-            password=args.password,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
             download_dir=args.dir,
             show_name=args.show_name,
             debug=args.debug

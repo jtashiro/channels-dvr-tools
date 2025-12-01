@@ -200,7 +200,9 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
     return (success_count, error_count, show_name)
 
 
-def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_override=None):
+def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_override=None,
+                     transmission_host='localhost', transmission_port=9091,
+                     transmission_username=None, transmission_password=None):
     """
     Monitor a directory for completed torrents and process them.
     
@@ -209,6 +211,10 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
         channels_tv_base: Base Channels DVR TV directory
         interval: Check interval in seconds
         show_name_override: Optional show name override
+        transmission_host: Transmission host
+        transmission_port: Transmission port
+        transmission_username: Transmission username
+        transmission_password: Transmission password
     """
     watch_path = Path(watch_dir)
     
@@ -244,6 +250,7 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
                     continue
                 
                 print(f"Found completed download: {item.name}")
+                torrent_name = item.name
                 
                 # Process it
                 success, errors, show_name = process_torrent_directory(
@@ -255,6 +262,15 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
                 
                 if success > 0:
                     processed.add(str(item))
+                    
+                    # Remove from Transmission after successful processing
+                    remove_torrent_from_transmission(
+                        torrent_name,
+                        host=transmission_host,
+                        port=transmission_port,
+                        username=transmission_username,
+                        password=transmission_password
+                    )
             
             time.sleep(interval)
     
@@ -262,7 +278,54 @@ def monitor_directory(watch_dir, channels_tv_base, interval=60, show_name_overri
         print("\n\nStopping monitor...")
 
 
-def process_all_completed(watch_dir, channels_tv_base, show_name_override=None):
+def remove_torrent_from_transmission(torrent_name, host='localhost', port=9091, username=None, password=None):
+    """
+    Remove torrent from Transmission and delete data.
+    
+    Args:
+        torrent_name: Name of torrent to remove
+        host: Transmission host
+        port: Transmission port
+        username: Transmission username
+        password: Transmission password
+    
+    Returns:
+        True if removed successfully, False otherwise
+    """
+    try:
+        import transmission_rpc
+        
+        # Connect to Transmission
+        client = transmission_rpc.Client(
+            host=host,
+            port=port,
+            username=username,
+            password=password
+        )
+        
+        # Find torrent by name
+        torrents = client.get_torrents()
+        for torrent in torrents:
+            if torrent.name == torrent_name:
+                # Remove torrent and delete data
+                client.remove_torrent(torrent.id, delete_data=True)
+                print(f"  ✓ Removed from Transmission and deleted data")
+                return True
+        
+        print(f"  ⚠ Torrent not found in Transmission: {torrent_name}")
+        return False
+        
+    except ImportError:
+        print(f"  ⚠ transmission-rpc not installed, cannot remove from Transmission")
+        return False
+    except Exception as e:
+        print(f"  ⚠ Error removing from Transmission: {e}")
+        return False
+
+
+def process_all_completed(watch_dir, channels_tv_base, show_name_override=None, 
+                         transmission_host='localhost', transmission_port=9091, 
+                         transmission_username=None, transmission_password=None):
     """
     Process all completed torrents in a directory (one-shot, for cron).
     
@@ -270,6 +333,10 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None):
         watch_dir: Directory containing completed downloads
         channels_tv_base: Base Channels DVR TV directory
         show_name_override: Optional show name override
+        transmission_host: Transmission host
+        transmission_port: Transmission port
+        transmission_username: Transmission username
+        transmission_password: Transmission password
     """
     watch_path = Path(watch_dir)
     
@@ -301,6 +368,7 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None):
             continue
         
         print(f"Processing: {item.name}")
+        torrent_name = item.name
         
         # Process it
         success, errors, show_name = process_torrent_directory(
@@ -314,6 +382,15 @@ def process_all_completed(watch_dir, channels_tv_base, show_name_override=None):
         total_errors += errors
         if success > 0:
             processed_count += 1
+            
+            # Remove from Transmission after successful processing
+            remove_torrent_from_transmission(
+                torrent_name,
+                host=transmission_host,
+                port=transmission_port,
+                username=transmission_username,
+                password=transmission_password
+            )
     
     if processed_count == 0:
         print("No completed downloads to process.")
