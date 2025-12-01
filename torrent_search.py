@@ -323,15 +323,14 @@ def add_to_transmission(torrents, host='localhost', port=9091, username=None, pa
         
         print(f"      Seeds: {torrent['seeds']} | Size: {torrent['size']} | Quality Score: {torrent.get('quality_score', 0)}")
         
-        # Determine download directory
+        # Determine download directory - only set if explicitly provided
+        # Otherwise, let transmission-daemon use its default download directory
         target_dir = download_dir
-        if not target_dir:
-            # Use temporary download location
-            # Default: /Volumes/cloud2-nas/temp-downloads/
-            target_dir = '/Volumes/cloud2-nas/temp-downloads'
-            
-            if debug:
-                print(f"[DEBUG] Using temp download directory: {target_dir}")
+        
+        if target_dir and debug:
+            print(f"[DEBUG] Using custom download directory: {target_dir}")
+        elif debug:
+            print(f"[DEBUG] Using transmission-daemon default download directory")
         
         # Build command
         cmd = ['python3', 'torrent_manager.py']
