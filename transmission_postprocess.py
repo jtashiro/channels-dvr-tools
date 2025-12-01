@@ -12,6 +12,43 @@ from pathlib import Path
 import time
 import logging
 from datetime import datetime
+import json
+
+
+def load_config(config_file='.config'):
+    """
+    Load configuration from a JSON config file.
+    
+    Expected format:
+    {
+        "transmission": {
+            "host": "localhost",
+            "port": 9091,
+            "username": "user",
+            "password": "pass"
+        }
+    }
+    
+    Args:
+        config_file: Path to config file (default: .config in current directory)
+    
+    Returns:
+        dict: Configuration dictionary or empty dict if file doesn't exist
+    """
+    config_path = Path(config_file)
+    
+    if not config_path.exists():
+        return {}
+    
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        logging.warning(f"Invalid JSON in config file: {e}")
+        return {}
+    except Exception as e:
+        logging.warning(f"Error reading config file: {e}")
+        return {}
 
 
 def is_video_file(filename):
@@ -464,6 +501,11 @@ Examples:
     parser.add_argument('--log-file', help='Log file path (default: transmission_postprocess.log)')
     parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                        help='Logging level (default: INFO)')
+    parser.add_argument('--config', default='.config', help='Config file path (default: .config)')
+    parser.add_argument('--transmission-host', help='Transmission host (overrides config)')
+    parser.add_argument('--transmission-port', type=int, help='Transmission port (overrides config)')
+    parser.add_argument('--transmission-username', help='Transmission username (overrides config)')
+    parser.add_argument('--transmission-password', help='Transmission password (overrides config)')
     
     subparsers = parser.add_subparsers(dest='command', help='Command')
     
@@ -504,6 +546,21 @@ Examples:
         parser.print_help()
         return
     
+    # Load config file
+    config = load_config(args.config)
+    transmission_config = config.get('transmission', {})
+    
+    # Merge config file and command line args (CLI args take precedence)
+    transmission_host = args.transmission_host or transmission_config.get('host', 'localhost')
+    transmission_port = args.transmission_port or transmission_config.get('port', 9091)
+    transmission_username = args.transmission_username or transmission_config.get('username')
+    transmission_password = args.transmission_password or transmission_config.get('password')
+    
+    if args.log_level == 'DEBUG' and config:
+        logging.debug(f"Loaded config from {args.config}")
+        if transmission_config:
+            logging.debug(f"Transmission config: host={transmission_host}, port={transmission_port}, username={'***' if transmission_username else 'None'}")
+    
     if args.command == 'process':
         process_torrent_directory(
             args.torrent_dir,
@@ -515,14 +572,22 @@ Examples:
         process_all_completed(
             args.watch_dir,
             args.channels_tv_base,
-            show_name_override=args.show_name
+            show_name_override=args.show_name,
+            transmission_host=transmission_host,
+            transmission_port=transmission_port,
+            transmission_username=transmission_username,
+            transmission_password=transmission_password
         )
     elif args.command == 'monitor':
         monitor_directory(
             args.watch_dir,
             args.channels_tv_base,
             interval=args.interval,
-            show_name_override=args.show_name
+            show_name_override=args.show_name,
+            transmission_host=transmission_host,
+            transmission_port=transmission_port,
+            transmission_username=transmission_username,
+            transmission_password=transmission_password
         )
 
 
