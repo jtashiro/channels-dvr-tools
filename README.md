@@ -1,19 +1,27 @@
 # Channels DVR Tools
 
-A monitoring utility for [Channels DVR](https://getchannels.com/) servers that continuously tests TVE (TV Everywhere) channel stream connectivity.
+A collection of utilities for [Channels DVR](https://getchannels.com/) server management, including TVE stream monitoring, torrent management, and automated content organization.
 
-## Features
+## Tools Overview
 
-- **Automated Stream Testing**: Continuously monitors all non-hidden TVE channels
-- **Configurable Polling**: Set custom check intervals (minimum 60 minutes to avoid server overload)
-- **Remote Server Support**: Connect to Channels DVR servers on your local network or remote locations
-- **Lightweight**: Single-file Python script with minimal dependencies
-- **Daemon-Friendly**: Designed to run as a long-running background process
+### 📺 TVE Stream Checker (`tve_checker.py`)
+Monitor and validate TVE (TV Everywhere) channel stream connectivity with email notifications for failures.
+
+### 🔍 Torrent Search (`torrent_search.py`)
+Search, deduplicate, and download content via torrents with automatic quality selection and Transmission integration.
+
+### 📦 Transmission Manager (`torrent_manager.py`)
+Command-line interface for managing torrents in Transmission (add, list, remove, stats).
+
+### 🔄 Post-Processor (`transmission_postprocess.py`)
+Automatically clean up and organize downloaded content into proper Channels DVR directory structure.
 
 ## Requirements
 
 - Python 3.x
 - `requests` library
+- `beautifulsoup4` library (for torrent search)
+- `transmission-rpc` library (for torrent management)
 
 ## Installation
 
@@ -25,152 +33,266 @@ cd channels-dvr-tools
 
 2. Install dependencies:
 ```bash
-pip install requests
+pip install requests beautifulsoup4 transmission-rpc
 ```
 
-3. Make the script executable:
+3. Make scripts executable:
 ```bash
-chmod +x tve_checker.py
+chmod +x tve_checker.py torrent_search.py torrent_manager.py transmission_postprocess.py
 ```
 
-## Usage
+---
 
-### Basic Usage
+## 📺 TVE Stream Checker
 
-Monitor a local Channels DVR server (default: 127.0.0.1:8089):
+Monitor TVE channel connectivity with email notifications for failures.
+
+### Features
+- Tests all non-hidden TVE channels
+- Tracks failure duration (how long each channel has been failing)
+- Email notifications with pretty HTML reports
+- Parallel testing for faster execution
+- Persistent failure log
+
+### Usage
+
 ```bash
-./tve_checker.py
+# Basic usage (one-time check)
+./tve_checker.py -i nas.local
+
+# With email notifications
+./tve_checker.py -i nas.local \
+  --smtp-server smtp.gmail.com \
+  --sender-email you@gmail.com \
+  --sender-password "your-app-password" \
+  --recipient-email notify@example.com
+
+# Adjust parallel workers
+./tve_checker.py -i nas.local --max-workers 20
 ```
 
-### Remote Server
-
-Connect to a Channels DVR server on your network:
-```bash
-./tve_checker.py -i 192.168.1.100 -p 8089
-```
-
-### Custom Check Frequency
-
-Run checks every 2 hours instead of the default 60 minutes:
-```bash
-./tve_checker.py -f 120
-```
-
-### Combined Options
-
-Monitor a remote server with custom frequency:
-```bash
-./tve_checker.py -i 192.168.1.100 -p 8089 -f 90
-```
-
-### Check Version
-
-Display the current version:
-```bash
-./tve_checker.py -v
-```
-
-## Command-Line Options
+### Command-Line Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-i`, `--ip_address` | IP address of the Channels DVR server | 127.0.0.1 |
-| `-p`, `--port_number` | Port number of the Channels DVR server | 8089 |
-| `-f`, `--frequency` | Check frequency in minutes (minimum: 60) | 60 |
-| `-v`, `--version` | Display version and exit | - |
+| `-i`, `--ip_address` | IP address of Channels DVR server | 127.0.0.1 |
+| `-p`, `--port_number` | Port number of Channels DVR server | 8089 |
+| `--max-workers` | Parallel test workers | 10 |
+| `--smtp-server` | SMTP server for email | - |
+| `--smtp-port` | SMTP port | 587 |
+| `--sender-email` | Email address to send from | - |
+| `--sender-password` | Email password | - |
+| `--recipient-email` | Email address to send to | - |
+| `--log-file` | Failure log file path | tve_failures.json |
 
-## How It Works
+### Run via Cron
 
-1. **Channel Discovery**: Queries the Channels DVR API (`/api/v1/channels`) to retrieve all channels
-2. **Filtering**: Selects only non-hidden channels where `source_id` starts with 'TVE'
-3. **Stream Testing**: For each channel, requests the stream endpoint and validates that video data is received
-4. **Reporting**: Prints test results for each channel (OK or error details)
-5. **Scheduling**: Waits for the specified interval before repeating
-
-### Stream Validation
-
-The tool efficiently validates streams by reading only the first chunk of data rather than downloading entire streams:
-
-```python
-# Validates stream is working without full download
-for chunk in response.iter_content(chunk_size=1024):
-    if chunk:
-        test_ok = True
-        break  # First chunk confirms stream works
-```
-
-## Example Output
-
-```
-Testing the connections of 45 TVE channels...
-  #701 (HBO): OK
-  #702 (Showtime): OK
-  #703 (Cinemax): Link valid but no video received.
-  #704 (Starz): OK
-  ...
-Next check in 60 minutes.
-```
-
-## Running as a Service
-
-### systemd (Linux)
-
-Create `/etc/systemd/system/tve-checker.service`:
-```ini
-[Unit]
-Description=Channels DVR TVE Stream Monitor
-After=network.target
-
-[Service]
-Type=simple
-User=your-username
-WorkingDirectory=/path/to/channels-dvr-tools
-ExecStart=/usr/bin/python3 /path/to/channels-dvr-tools/tve_checker.py -i 192.168.1.100 -f 120
-Restart=always
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
+Add to crontab for automatic monitoring:
 ```bash
-sudo systemctl enable tve-checker
-sudo systemctl start tve-checker
+# Check every hour
+0 * * * * /opt/local/bin/python3.13 /path/to/tve_checker.py -i nas.local --smtp-server smtp.gmail.com --sender-email you@gmail.com --sender-password "password" --recipient-email notify@example.com >> /tmp/tve-checker.log 2>&1
 ```
 
-### Docker
+---
 
-Create a `Dockerfile`:
-```dockerfile
-FROM python:3-slim
-WORKDIR /app
-RUN pip install requests
-COPY tve_checker.py .
-ENTRYPOINT ["python3", "tve_checker.py"]
-```
+## 🔍 Torrent Search & Download
 
-Build and run:
+Search for content, automatically deduplicate episodes, select best quality, and download via Transmission.
+
+### Features
+- Quality-based ranking (4K > 1080p > 720p, etc.)
+- Episode deduplication (keeps best quality with most seeds)
+- Automatic sorting by season/episode
+- Transmission integration
+- Temporary download location support
+
+### Usage
+
 ```bash
-docker build -t tve-checker .
-docker run -d --name tve-checker tve-checker -i 192.168.1.100 -f 120
+# Search and display results
+./torrent_search.py --query "Breaking Bad"
+
+# Auto-download to Transmission
+./torrent_search.py --query "Breaking Bad" --auto-download
+
+# Remote Transmission server
+./torrent_search.py --query "The Office" --auto-download \
+  --host 192.168.1.100 \
+  --username admin \
+  --password secret
+
+# Override show name for directory structure
+./torrent_search.py --query "show" --auto-download --show-name "The Show"
+
+# Debug mode
+./torrent_search.py --query "ubuntu" --debug
 ```
+
+**Note:** Only use for legal, non-copyrighted content (Linux ISOs, open-source software, Creative Commons media, etc.)
+
+---
+
+## 📦 Transmission Manager
+
+Command-line tool for managing torrents in Transmission.
+
+### Usage
+
+```bash
+# Add a magnet link
+./torrent_manager.py add "magnet:?xt=urn:btih:..."
+
+# Add with custom download directory
+./torrent_manager.py add "magnet:?xt=urn:btih:..." --dir /downloads/shows
+
+# List active torrents
+./torrent_manager.py list
+
+# Show statistics
+./torrent_manager.py stats
+
+# Remove a torrent (keeps files)
+./torrent_manager.py remove 1
+
+# Remove torrent and delete files
+./torrent_manager.py remove 1 --delete-data
+
+# Remote Transmission
+./torrent_manager.py --host 192.168.1.100 --username admin --password pass list
+```
+
+---
+
+## 🔄 Post-Processor
+
+Automatically organize completed downloads into Channels DVR directory structure.
+
+### Features
+- Moves files from temp download location
+- Extracts show name and episode info
+- Renames to Channels DVR format: `Show Name S01E02 1080p WEBDL.mkv`
+- Removes torrent artifacts (.nfo, .txt, etc.)
+- Cleans up empty directories
+
+### Usage
+
+#### Process Single Download (Dry Run)
+```bash
+./transmission_postprocess.py process \
+  "/Volumes/cloud2-nas/temp-downloads/Show.S01E01.1080p" \
+  "/Volumes/cloud2-nas/channels-dvr/TV"
+```
+
+#### Process Single Download (Apply Changes)
+```bash
+./transmission_postprocess.py process \
+  "/Volumes/cloud2-nas/temp-downloads/Show.S01E01.1080p" \
+  "/Volumes/cloud2-nas/channels-dvr/TV" \
+  --apply
+```
+
+#### Process All Completed Downloads (For Cron)
+```bash
+./transmission_postprocess.py process-all \
+  "/Volumes/cloud2-nas/temp-downloads" \
+  "/Volumes/cloud2-nas/channels-dvr/TV"
+```
+
+#### Monitor Directory Continuously
+```bash
+./transmission_postprocess.py monitor \
+  "/Volumes/cloud2-nas/temp-downloads" \
+  "/Volumes/cloud2-nas/channels-dvr/TV"
+```
+
+### Run via Cron
+
+Add to crontab to process completed downloads every 5 minutes:
+```bash
+*/5 * * * * /opt/local/bin/python3.13 /path/to/transmission_postprocess.py process-all /Volumes/cloud2-nas/temp-downloads /Volumes/cloud2-nas/channels-dvr/TV >> /tmp/transmission-postprocess.log 2>&1
+```
+
+---
+
+## Complete Workflow Example
+
+### 1. Configure Transmission
+Set download directory to: `/Volumes/cloud2-nas/temp-downloads`
+
+### 2. Search and Download
+```bash
+./torrent_search.py --query "Breaking Bad" --auto-download
+```
+
+### 3. Automatic Post-Processing (Cron)
+Files are automatically cleaned up and moved to:
+```
+/Volumes/cloud2-nas/channels-dvr/TV/Breaking Bad/Breaking Bad S01E01 1080p WEBDL x264.mkv
+```
+
+### 4. Channels DVR Auto-Indexes
+Channels DVR automatically detects and indexes the new files!
+
+---
+
+## Channels DVR Directory Structure
+
+For proper indexing, organize files as follows:
+
+### TV Shows
+```
+/Volumes/cloud2-nas/channels-dvr/TV/
+  └── Show Name/
+      ├── Show Name S01E01 1080p WEBDL.mkv
+      ├── Show Name S01E02 720p HDTV.mkv
+      └── Show Name S02E01 1080p BluRay.mkv
+```
+
+### Movies
+```
+/Volumes/cloud2-nas/channels-dvr/Movies/
+  ├── Movie Title (2023).mkv
+  └── Another Movie (2022).mp4
+```
+
+The post-processor automatically creates this structure for you.
 
 ## Troubleshooting
 
+### TVE Checker
+
 **No TVE channels found:**
-- Verify your Channels DVR server is running and accessible
-- Check that you have TVE sources configured in Channels DVR
+- Verify Channels DVR server is running and accessible
+- Check that you have TVE sources configured
 - Ensure the IP address and port are correct
 
 **Connection timeouts:**
-- Check firewall settings on both client and server
-- Verify network connectivity between machines
+- Check firewall settings
+- Verify network connectivity
 - Default timeout is 30 seconds per stream
 
-**Minimum frequency error:**
-- The tool enforces a 60-minute minimum to prevent server overload
-- Increase the `-f` value to at least 60
+### Torrent Search
+
+**No results found:**
+- API may be temporarily down
+- Try different search terms
+- Check debug output with `--debug` flag
+
+**Transmission connection failed:**
+- Ensure Transmission is running
+- Verify host/port/credentials
+- Check Transmission allows remote access
+
+### Post-Processor
+
+**Files not moving:**
+- Check source and destination paths exist
+- Verify write permissions
+- Use `--apply` flag (dry-run is default for `process` command)
+
+**Episode detection failing:**
+- Override show name with `--show-name "Show Name"`
+- Check filename contains S##E## or #x## pattern
 
 ## Contributing
 

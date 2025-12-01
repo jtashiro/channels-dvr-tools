@@ -331,16 +331,16 @@ def main():
         epilog="""
 Examples:
   # Process single torrent directory (dry run)
-  %(prog)s process /downloads/complete/Show.S01E01 /Volumes/cloud2-nas/channels-dvr/TV
+  %(prog)s process /downloads/complete/Show.S01E01 /mnt/cloud2-nas/Imported-TV
   
   # Process and apply changes
-  %(prog)s process /downloads/complete/Show.S01E01 /Volumes/cloud2-nas/channels-dvr/TV --apply
+  %(prog)s process /downloads/complete/Show.S01E01 /mnt/cloud2-nas/Imported-TV --apply
   
   # Process all completed downloads (for cron)
-  %(prog)s process-all /Volumes/cloud2-nas/temp-downloads /Volumes/cloud2-nas/channels-dvr/TV
+  %(prog)s process-all /Volumes/cloud2-nas/temp-downloads /mnt/cloud2-nas/Imported-TV
   
   # Monitor directory continuously
-  %(prog)s monitor /Volumes/cloud2-nas/temp-downloads /Volumes/cloud2-nas/channels-dvr/TV
+  %(prog)s monitor /Volumes/cloud2-nas/temp-downloads /mnt/cloud2-nas/Imported-TV
         """
     )
     
