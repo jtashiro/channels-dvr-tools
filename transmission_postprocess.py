@@ -160,10 +160,24 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
                 # Create show directory if needed
                 show_dir.mkdir(parents=True, exist_ok=True)
                 
-                # Move file
-                shutil.move(str(video_file), str(target_path))
+                # Copy then delete instead of move to handle permission issues better
+                # First, try to copy the file
+                shutil.copy2(str(video_file), str(target_path))
+                
+                # If copy succeeded, try to remove original
+                try:
+                    video_file.unlink()
+                except OSError as del_err:
+                    print(f"  ⚠ Warning: File copied but could not delete original: {del_err}")
+                    print(f"    Original file: {video_file}")
+                
                 print(f"  ✓ Moved successfully")
                 success_count += 1
+            except PermissionError as e:
+                print(f"  ✗ Permission Error: {e}")
+                print(f"    Check file permissions on: {video_file}")
+                print(f"    Try: sudo chown -R $USER '{torrent_path}'")
+                error_count += 1
             except Exception as e:
                 print(f"  ✗ Error: {e}")
                 error_count += 1
@@ -173,18 +187,24 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
         
         print()
     
-    # Clean up empty torrent directory
-    if not dry_run and success_count > 0:
+    # Clean up empty torrent directory - only if all files succeeded
+    if not dry_run and success_count > 0 and error_count == 0:
         try:
             # Remove any remaining non-video files
             for item in torrent_path.rglob('*'):
                 if item.is_file():
-                    item.unlink()
+                    try:
+                        item.unlink()
+                    except OSError:
+                        pass  # Skip files we can't delete
             
             # Remove empty directories
             for item in sorted(torrent_path.rglob('*'), key=lambda p: len(p.parts), reverse=True):
                 if item.is_dir() and not any(item.iterdir()):
-                    item.rmdir()
+                    try:
+                        item.rmdir()
+                    except OSError:
+                        pass  # Skip directories we can't delete
             
             # Remove main directory if empty
             if not any(torrent_path.iterdir()):
@@ -192,6 +212,8 @@ def process_torrent_directory(torrent_dir, channels_tv_base, show_name_override=
                 print(f"✓ Cleaned up torrent directory")
         except Exception as e:
             print(f"⚠ Warning: Could not fully clean up torrent directory: {e}")
+    elif not dry_run and error_count > 0:
+        print(f"⚠ Skipping cleanup due to errors - directory will be retried next run")
     
     print(f"{'='*60}")
     print(f"Summary: {success_count} succeeded, {error_count} failed")
