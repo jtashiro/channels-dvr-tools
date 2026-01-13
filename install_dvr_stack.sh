@@ -27,7 +27,7 @@ sudo mkdir -p \
   "$MEDIA_ROOT/downloads/tv-sonarr" \
   "$MEDIA_ROOT/downloads/radarr" \
   "$MEDIA_ROOT/downloads/watch" \
-  "$MEDIA_ROOT/incomplete" \
+  "$MEDIA_ROOT/downloads/incomplete" \
   "$MEDIA_ROOT/tv" \
   "$MEDIA_ROOT/movies" \
   "$MEDIA_ROOT/plexserver" \
@@ -150,26 +150,37 @@ sudo systemctl stop transmission-daemon || true
 
 TRANSMISSION_CONFIG="/etc/transmission-daemon/settings.json"
 
+# Create hard link for Transmission config in user config directory
+USER_HOME="/home/$MEDIA_USER"
+USER_CONFIG_DIR="$USER_HOME/.config/transmission-daemon"
+sudo mkdir -p "$USER_CONFIG_DIR"
+if [[ ! -f "$USER_CONFIG_DIR/settings.json" ]]; then
+  sudo ln "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
+fi
+
 if [[ -f "$TRANSMISSION_CONFIG" ]]; then
   TMP_JSON=$(sudo mktemp)
 
   sudo jq \
   --arg dl "$MEDIA_ROOT/downloads" \
-  --arg inc "$MEDIA_ROOT/incomplete" \
-  '.["download-dir"]=$dl
-   | .["incomplete-dir"]=$inc
-   | .["incomplete-dir-enabled"]=true
-   | .["rpc-enabled"]=true
-   | .["rpc-bind-address"]="0.0.0.0"
-   | .["rpc-authentication-required"]=true
-   | .["rpc-whitelist-enabled"]=false
-   | .["rpc-host-whitelist-enabled"]=false' \
-  "$TRANSMISSION_CONFIG" | sudo tee "$TMP_JSON" >/dev/null
+  --arg inc "$MEDIA_ROOT/downloads/incomplete" \
+  --arg watch "$MEDIA_ROOT/downloads/watch" \
+    '.["download-dir"]=$dl
+     | .["incomplete-dir"]=$inc
+     | .["incomplete-dir-enabled"]=true
+     | .["rpc-enabled"]=true
+     | .["rpc-bind-address"]="0.0.0.0"
+     | .["rpc-authentication-required"]=true
+     | .["rpc-whitelist-enabled"]=false
+     | .["rpc-host-whitelist-enabled"]=false
+     | .["watch-dir"]=$watch
+     | .["watch-dir-enabled"]=true' \
+    "$TRANSMISSION_CONFIG" | sudo tee "$TMP_JSON" >/dev/null
 
   sudo mv "$TMP_JSON" "$TRANSMISSION_CONFIG"
 fi
 
-sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT/downloads" "$MEDIA_ROOT/incomplete" || true
+sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT/downloads"  || true
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" /var/lib/transmission-daemon 2>/dev/null || true
 
 sudo mkdir -p /etc/systemd/system/transmission-daemon.service.d
