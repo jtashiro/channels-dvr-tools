@@ -149,39 +149,52 @@ add_transmission_client() {
   local APP_URL=$2
   local APP_API=$3
 
-  echo "→ Adding Transmission client to $APP_NAME"
+  CATEGORY_VALUE="tv-sonarr"
+  # Normalize APP_NAME for comparison (case-insensitive, trim)
+  APP_NAME_CLEAN=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
+  if [[ "$APP_NAME_CLEAN" == "radarr" ]]; then
+    CATEGORY_VALUE="movies-radarr"
+  fi
+  RESPONSE=$(curl -s -X POST "$APP_URL/api/v3/downloadclient" \
+    -H "X-Api-Key: $APP_API" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"name\": \"Transmission\",
+      \"enable\": true,
+      \"protocol\": \"torrent\",
+      \"priority\": 1,
+      \"implementation\": \"Transmission\",
+      \"configContract\": \"TransmissionSettings\",
+      \"tags\": [],
+      \"fields\": [
+        { \"name\": \"host\", \"value\": \"$HOSTNAME_LOCAL\" },
+        { \"name\": \"port\", \"value\": 9091 },
+        { \"name\": \"useSsl\", \"value\": false },
+        { \"name\": \"urlBase\", \"value\": \"/transmission\" },
+        { \"name\": \"username\", \"value\": \"$TRANSMISSION_USER\" },
+        { \"name\": \"password\", \"value\": \"$TRANSMISSION_PASS\" },
+        { \"name\": \"category\", \"value\": \"$CATEGORY_VALUE\" },
+        { \"name\": \"recentPriority\", \"value\": 1 },
+        { \"name\": \"olderPriority\", \"value\": 1 }
+      ]
+    }")
 
-    CATEGORY_VALUE="tv-sonarr"
-    # Normalize APP_NAME for comparison (case-insensitive, trim)
-    APP_NAME_CLEAN=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
-    if [[ "$APP_NAME_CLEAN" == "radarr" ]]; then
-      CATEGORY_VALUE="movies-radarr"
-    fi
-    RESPONSE=$(curl -s -X POST "$APP_URL/api/v3/downloadclient" \
-      -H "X-Api-Key: $APP_API" \
-      -H "Content-Type: application/json" \
-      -d "{
-        \"name\": \"Transmission\",
-        \"enable\": true,
-        \"protocol\": \"torrent\",
-        \"priority\": 1,
-        \"implementation\": \"Transmission\",
-        \"configContract\": \"TransmissionSettings\",
-        \"tags\": [],
-        \"fields\": [
-          { \"name\": \"host\", \"value\": \"$HOSTNAME_LOCAL\" },
-          { \"name\": \"port\", \"value\": 9091 },
-          { \"name\": \"useSsl\", \"value\": false },
-          { \"name\": \"urlBase\", \"value\": \"/transmission\" },
-          { \"name\": \"username\", \"value\": \"$TRANSMISSION_USER\" },
-          { \"name\": \"password\", \"value\": \"$TRANSMISSION_PASS\" },
-          { \"name\": \"category\", \"value\": \"$CATEGORY_VALUE\" },
-          { \"name\": \"recentPriority\", \"value\": 1 },
-          { \"name\": \"olderPriority\", \"value\": 1 }
-        ]
-      }")
+  # Check for error in response
+  if [[ "$RESPONSE" == *'"error"'* || "$RESPONSE" == *'"errors"'* ]]; then
+    echo "ERROR: Failed to add Transmission client to $APP_NAME. Response:"
+    echo "$RESPONSE"
+    return 1
+  fi
 
-    # Suppress JSON output
+  # Check if the client was actually added by querying the list
+  CLIENT_ID=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API" | jq -r '.[] | select(.implementation=="Transmission") | .id')
+  if [[ -n "$CLIENT_ID" && "$CLIENT_ID" != "null" ]]; then
+    echo "→ Successfully added Transmission client to $APP_NAME (id=$CLIENT_ID)"
+  else
+    echo "ERROR: Transmission client was not added to $APP_NAME. Response:"
+    echo "$RESPONSE"
+    return 1
+  fi
 }
 
 ###############################################
