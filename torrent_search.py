@@ -97,6 +97,7 @@ def search_torrents(query, api_url='https://apibay.org', debug=False):
                 size_bytes = int(item.get('size', 0))
                 seeds = item.get('seeders', '0')
                 leeches = item.get('leechers', '0')
+                category = item.get('category', 'Unknown')
                 
                 # Convert size to human readable
                 size = format_size(size_bytes)
@@ -122,7 +123,9 @@ def search_torrents(query, api_url='https://apibay.org', debug=False):
                     'seeds': seeds,
                     'leeches': leeches,
                     'size': size,
-                    'id': item.get('id', 'unknown')
+                    'size_bytes': size_bytes,
+                    'id': item.get('id', 'unknown'),
+                    'category': category
                 })
                 
                 if debug and idx <= 3:
@@ -385,6 +388,160 @@ def add_to_transmission(torrents, host='localhost', port=9091, username=None, pa
     return added_count, failed_count
 
 
+def parse_number_range(numbers_str):
+    """
+    Parse number string like "1,3,5" or "1-3,5" into list of integers.
+    
+    Args:
+        numbers_str: String like "1,3,5" or "1-3,5,7-9"
+    
+    Returns:
+        List of integers
+    """
+    result = set()
+    
+    for part in numbers_str.split(','):
+        part = part.strip()
+        if '-' in part:
+            # Handle range like "1-3"
+            try:
+                start, end = part.split('-')
+                result.update(range(int(start), int(end) + 1))
+            except ValueError:
+                print(f"Warning: Invalid range '{part}', skipping")
+        else:
+            # Handle single number
+            try:
+                result.add(int(part))
+            except ValueError:
+                print(f"Warning: Invalid number '{part}', skipping")
+    
+    return sorted(result)
+
+
+def get_category_name(category_id):
+    """
+    Get friendly category name from ID.
+    
+    Args:
+        category_id: Category ID string
+    
+    Returns:
+        Friendly category name
+    """
+    CATEGORY_NAMES = {
+        # Audio
+        '100': 'Audio',
+        '101': 'Music',
+        '102': 'Audio Books',
+        '103': 'Sound Clips',
+        '104': 'FLAC',
+        '199': 'Audio Other',
+        
+        # Video
+        '200': 'Video',
+        '201': 'Movies',
+        '202': 'Movies DVDR',
+        '203': 'Music Videos',
+        '204': 'Movie Clips',
+        '205': 'TV Shows',
+        '206': 'Handheld',
+        '207': 'HD Movies',
+        '208': 'HD TV Shows',
+        '209': ' 3D Movies',
+        '299': 'Video Other',
+        
+        # Applications
+        '300': 'Applications',
+        '301': 'Windows',
+        '302': 'Mac',
+        '303': 'UNIX',
+        '304': 'Handheld',
+        '305': 'IOS (iPad/iPhone)',
+        '306': 'Android',
+        '399': 'Applications Other',
+        
+        # Games
+        '400': 'Games',
+        '401': 'PC Games',
+        '402': 'Mac Games',
+        '403': 'PSx',
+        '404': 'XBOX360',
+        '405': 'Wii',
+        '406': 'Handheld',
+        '407': 'IOS (iPad/iPhone)',
+        '408': 'Android',
+        '499': 'Games Other',
+        
+        # Porn
+        '500': 'Porn',
+        '501': 'Movies',
+        '502': 'Movies DVDR',
+        '503': 'Pictures',
+        '504': 'Games',
+        '505': 'HD Movies',
+        '506': 'Movie Clips',
+        '599': 'Porn Other',
+        
+        # Other
+        '600': 'Other',
+        '601': 'E-books',
+        '602': 'Comics',
+        '603': 'Pictures',
+        '604': 'Covers',
+        '605': 'Physibles',
+        '699': 'Other Other',
+    }
+    return CATEGORY_NAMES.get(category_id, f'Category {category_id}')
+
+
+def parse_category(category_input):
+    """
+    Parse category input - accepts friendly names or numeric IDs.
+    
+    Args:
+        category_input: Category name (case-insensitive) or numeric ID
+    
+    Returns:
+        Category ID string or None if invalid
+    """
+    # Category mapping: friendly name -> ID
+    CATEGORIES = {
+        'audio': '100',
+        'music': '100',
+        'video': '200',
+        'movies': '200',
+        'tv': '205',
+        'tvshows': '205',
+        'tv-shows': '205',
+        'hdmovies': '207',
+        'hd-movies': '207',
+        'hdtv': '208',
+        'hd-tv': '208',
+        'apps': '300',
+        'applications': '300',
+        'games': '400',
+        'porn': '500',
+        'xxx': '500',
+        'other': '600',
+    }
+    
+    # If it's already a number, return it
+    if category_input.isdigit():
+        return category_input
+    
+    # Try to match friendly name (case-insensitive)
+    category_lower = category_input.lower()
+    if category_lower in CATEGORIES:
+        return CATEGORIES[category_lower]
+    
+    # Invalid category
+    print(f"Warning: Unknown category '{category_input}'")
+    print(f"Valid categories: {', '.join(sorted(set(CATEGORIES.keys())))}")
+    print(f"Or use numeric ID (100, 200, 205, 207, 208, 300, 400, 500, 600)")
+    return None
+
+
 def main():
     import sys
     import argparse
@@ -400,11 +557,31 @@ Examples:
   # Search with debug info
   %(prog)s --debug
   
-  # Search and auto-download to Transmission
+  # Search and auto-download ALL to Transmission
   %(prog)s --auto-download
   
+  # Search and select which ones to download interactively
+  %(prog)s --select
+  
+  # Download specific numbers
+  %(prog)s --numbers "1,3,5"
+  %(prog)s --numbers "1-3,5,7-9"
+  
+  # Filter results with minimum seeds
+  %(prog)s --min-seeds 5
+  %(prog)s --query "Show Name" --min-seeds 10 --select
+  
+  # Filter by category
+  %(prog)s --query "Show Name" --category tv
+  %(prog)s --category hdtv --min-seeds 5 --select
+  %(prog)s --category "205" --select  # Can also use numeric ID
+  
+  # Sort by size instead of seeds
+  %(prog)s --query "Show Name" --sort-desc size
+  %(prog)s --sort-desc seeds  # Default
+  
   # Download to specific directory on remote Transmission
-  %(prog)s --auto-download --host 192.168.1.100 --dir /downloads/shows
+  %(prog)s --numbers "1,3" --host 192.168.1.100 --dir /downloads/shows
 
 Config File:
   Create a .config file in the script directory with:
@@ -421,7 +598,12 @@ Config File:
     )
     
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug output')
-    parser.add_argument('--auto-download', action='store_true', help='Automatically add torrents to Transmission')
+    parser.add_argument('--auto-download', action='store_true', help='Automatically add ALL torrents to Transmission')
+    parser.add_argument('--select', action='store_true', help='Interactively select which torrents to download')
+    parser.add_argument('--numbers', help='Download specific torrent numbers (e.g., "1,3,5" or "1-3,5")')
+    parser.add_argument('--min-seeds', type=int, default=1, help='Minimum number of seeds required (default: 1)')
+    parser.add_argument('--category', help='Filter by category (e.g., "tv", "hdtv", "movies", "205")')
+    parser.add_argument('--sort-desc', choices=['size', 'seeds'], default='seeds', help='Sort results in descending order by size or seeds (default: seeds)')
     parser.add_argument('--config', default='.config', help='Config file path (default: .config)')
     parser.add_argument('--host', help='Transmission host (overrides config)')
     parser.add_argument('--port', type=int, help='Transmission port (overrides config)')
@@ -468,31 +650,92 @@ Config File:
     # Deduplicate and sort by episode
     unique_results = deduplicate_episodes(results, debug=args.debug)
     
+    # Filter by category
+    if args.category:
+        category_id = parse_category(args.category)
+        if category_id:
+            before_filter = len(unique_results)
+            unique_results = [t for t in unique_results if t.get('category') == category_id]
+            filtered = before_filter - len(unique_results)
+            if filtered > 0:
+                print(f"Filtered out {filtered} torrent(s) not in category {category_id}")
+        else:
+            print("Category filter ignored due to invalid input")
+            args.category = None  # Clear invalid category for display
+    
+    # Filter by minimum seeds
+    if args.min_seeds > 0:
+        before_filter = len(unique_results)
+        unique_results = [t for t in unique_results if int(t.get('seeds', 0)) >= args.min_seeds]
+        filtered = before_filter - len(unique_results)
+        if filtered > 0:
+            print(f"Filtered out {filtered} torrent(s) with less than {args.min_seeds} seeds")
+    
+    # Sort results
+    if args.sort_desc == 'seeds':
+        unique_results.sort(key=lambda t: int(t.get('seeds', 0)), reverse=True)
+    elif args.sort_desc == 'size':
+        unique_results.sort(key=lambda t: int(t.get('size_bytes', 0)), reverse=True)
+    
     print(f"\n{'='*60}")
     print(f"After deduplication: {len(unique_results)} unique episodes/files")
+    if args.category:
+        print(f"Category filter: {args.category}")
+    if args.min_seeds > 0:
+        print(f"Minimum seeds: {args.min_seeds}")
+    print(f"Sort: {args.sort_desc} (descending)")
     print(f"{'='*60}\n")
     
-    if not args.auto_download:
-        # Just display results
-        for i, torrent in enumerate(unique_results, 1):
-            ep_info = torrent.get('episode_info')
-            if ep_info:
-                season, episode = ep_info
-                print(f"{i}. S{season:02d}E{episode:02d}: {torrent['name']}")
-            else:
-                print(f"{i}. {torrent['name']}")
-            
-            print(f"   Size: {torrent['size']} | Seeds: {torrent['seeds']} | Quality: {torrent.get('quality_score', 0)}")
-            if torrent['magnet']:
-                print(f"   Magnet: {torrent['magnet'][:80]}...")
-            print()
+    # Display results
+    for i, torrent in enumerate(unique_results, 1):
+        ep_info = torrent.get('episode_info')
+        if ep_info:
+            season, episode = ep_info
+            print(f"{i}. S{season:02d}E{episode:02d}: {torrent['name']}")
+        else:
+            print(f"{i}. {torrent['name']}")
         
-        print("\nTo automatically download these, run with --auto-download flag")
-    else:
-        # Add to Transmission
-        print("Adding torrents to Transmission...\n")
+        category_id = torrent.get('category', 'Unknown')
+        category_name = get_category_name(category_id) if category_id != 'Unknown' else 'Unknown'
+        print(f"   Size: {torrent['size']} | Seeds: {torrent['seeds']} | Quality: {torrent.get('quality_score', 0)} | Category: {category_name}")
+        if torrent['magnet']:
+            print(f"   Magnet: {torrent['magnet'][:80]}...")
+        print()
+    
+    # Determine which torrents to download
+    torrents_to_download = []
+    
+    if args.auto_download:
+        # Download all
+        torrents_to_download = unique_results
+    elif args.numbers:
+        # Download specific numbers
+        numbers = parse_number_range(args.numbers)
+        for num in numbers:
+            if 1 <= num <= len(unique_results):
+                torrents_to_download.append(unique_results[num - 1])
+            else:
+                print(f"Warning: Number {num} is out of range (1-{len(unique_results)})")
+    elif args.select:
+        # Interactive selection
+        print("\nEnter torrent numbers to download (e.g., '1,3,5' or '1-3,5' or 'all'):")
+        selection = input("> ").strip()
+        
+        if selection.lower() == 'all':
+            torrents_to_download = unique_results
+        else:
+            numbers = parse_number_range(selection)
+            for num in numbers:
+                if 1 <= num <= len(unique_results):
+                    torrents_to_download.append(unique_results[num - 1])
+                else:
+                    print(f"Warning: Number {num} is out of range (1-{len(unique_results)})")
+    
+    # Download selected torrents
+    if torrents_to_download:
+        print(f"\nAdding {len(torrents_to_download)} torrent(s) to Transmission...\n")
         add_to_transmission(
-            unique_results,
+            torrents_to_download,
             host=host,
             port=port,
             username=username,
@@ -501,6 +744,9 @@ Config File:
             show_name=args.show_name,
             debug=args.debug
         )
+    else:
+        print("\nNo torrents selected for download.")
+        print("Use --auto-download, --select, or --numbers to download torrents.")
 
 
 if __name__ == '__main__':
