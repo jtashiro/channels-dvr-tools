@@ -1,5 +1,7 @@
 # Channels DVR Tools
 
+> **🛠️ New! See the full [How-To Install Guide](install-readme.md) for step-by-step Ubuntu media server setup instructions.**
+
 A collection of utilities for [Channels DVR](https://getchannels.com/) server management, including TVE stream monitoring, torrent management, and automated content organization.
 
 ## Tools Overview

@@ -1,0 +1,126 @@
+# How-To: Install and Prepare an Ubuntu Media Server
+
+This guide walks you through installing Ubuntu Server, creating a dedicated media user, enabling .local network discovery, and preparing your system for automated media server setup scripts (e.g., Docker containers for Transmission, Sonarr, Radarr, Jackett, and post-install scripts).
+
+---
+
+## Prerequisites
+- Computer or VM with at least 2GB RAM, 20GB storage, and internet access
+- USB drive (≥4GB) for installation media
+- Basic command-line familiarity
+
+---
+
+## 1. Install Ubuntu Server
+
+### a. Download Ubuntu ISO
+- Go to: [ubuntu.com/download/server](https://ubuntu.com/download/server)
+- Download the latest LTS version (e.g., Ubuntu 24.04 LTS Server)
+
+### b. Create Bootable USB
+- Insert your USB drive
+- On **Windows**: Use [Rufus](https://rufus.ie/)
+- On **Linux/macOS**:
+  ```bash
+  sudo dd if=/path/to/ubuntu.iso of=/dev/sdX bs=4M status=progress && sync
+  # Replace /path/to/ubuntu.iso and /dev/sdX (use lsblk to find your USB device)
+  ```
+
+### c. Boot and Install
+- Boot from the USB (set in BIOS/UEFI)
+- Follow installer prompts:
+  - Choose language, keyboard
+  - "Install Ubuntu Server"
+  - Configure network (DHCP is fine for most)
+  - Use entire disk (guided install)
+  - Create an **admin** user (not your media user)
+  - Enable OpenSSH server (recommended)
+  - Skip snaps unless needed
+- Complete install, reboot, and remove USB
+
+### d. Update System
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo reboot
+```
+
+---
+
+## 2. Create a Dedicated Media User
+
+For security, run media services as a non-root user.
+
+```bash
+sudo adduser media
+# Set a strong password when prompted
+```
+- (Optional) Add to sudo group:
+  ```bash
+  sudo usermod -aG sudo media
+  ```
+- Add to docker group (if using Docker):
+  ```bash
+  sudo usermod -aG docker media
+  ```
+- Test login:
+  ```bash
+  su - media
+  exit
+  ```
+
+---
+
+## 3. Install avahi-daemon for .local Hostnames
+
+This enables mDNS so you can use `hostname.local` in scripts.
+
+```bash
+sudo apt update
+sudo apt install avahi-daemon -y
+sudo systemctl start avahi-daemon
+sudo systemctl enable avahi-daemon
+sudo systemctl status avahi-daemon  # Should show 'active (running)'
+```
+- Test from another machine:
+  ```bash
+  ping $(hostname).local
+  ```
+
+---
+
+## 4. (Optional) Install Docker
+If your install script sets up Docker, you may need to install it first:
+```bash
+sudo apt install docker.io docker-compose -y
+sudo systemctl enable --now docker
+sudo usermod -aG docker media
+```
+
+---
+
+## 5. Run Your Install and Post-Install Scripts
+
+- Copy your install script (e.g., for Docker containers) to the server
+- Run as the appropriate user:
+  ```bash
+  sudo bash install_script.sh
+  ```
+- Once containers are running (Jackett, Sonarr, Radarr, Transmission), run the post-install script:
+  ```bash
+  bash ~/post_install_link_jackett.sh
+  ```
+  This will link indexers, configure Transmission, and set up remote path mappings automatically.
+
+---
+
+## Troubleshooting
+- If `avahi-daemon` fails: `sudo ufw allow mdns`
+- For SSH: ensure port 22 is open
+- For Docker: check volumes and permissions for media directories
+- Always back up important data before making changes
+- Check logs: `journalctl -u avahi-daemon`
+- For more help: Ubuntu forums and documentation
+
+---
+
+This setup provides a secure, discoverable base for your media server. After these steps, your system is ready for automated media management!
