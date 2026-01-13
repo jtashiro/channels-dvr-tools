@@ -214,6 +214,39 @@ Add to crontab to process completed downloads every 5 minutes:
 
 ---
 
+## ⚙️ Automated Sonarr/Radarr Configuration
+
+### `post_install_links.sh`
+
+Automates the initial and ongoing setup of Sonarr and Radarr after installation or container recreation. This script is designed for Docker-based deployments and ensures all download client and indexer settings are correct and up to date.
+
+**Key Features:**
+- Reads API keys directly from running Docker containers (Jackett, Sonarr, Radarr)
+- Configures Transmission as the download client for both Sonarr and Radarr
+- Adds or updates Remote Path Mappings for each app, always removing any existing mapping for the same host/remote/local path before adding the new one (idempotent)
+- Ensures correct host and path matching, including trailing slashes, for reliable mapping
+- Links all active Jackett indexers to Sonarr and Radarr
+- Removes old clients, indexers, and stale remote path mappings before adding new ones
+- Suppresses verbose JSON output for cleaner logs
+
+#### Usage
+
+```bash
+./post_install_links.sh [hostname]
+```
+- If no hostname is provided, the script uses the current machine's hostname with `.local` appended.
+- Ensure Docker containers for Jackett, Sonarr, Radarr, and Transmission are running and accessible.
+- The script prints debug output and errors for any failed API calls.
+
+#### Idempotency & Troubleshooting
+- The script is safe to run multiple times; it will always remove and re-add remote path mappings as needed.
+- If you see errors about "RemotePath already configured," the script now forcibly removes all matching mappings before adding the new one.
+- If remote path mappings are not used, verify the host and path match exactly what Sonarr/Radarr see from Transmission (including trailing slashes).
+- Check for API errors in the output (HTTP 400/401/500, validation errors, etc.).
+- The script prints the POST payload and API response for debugging, but suppresses large JSON dumps for clarity.
+
+---
+
 ## Complete Workflow Example
 
 ### 1. Configure Transmission
