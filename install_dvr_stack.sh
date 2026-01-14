@@ -7,7 +7,7 @@ MEDIA_ROOT="/mnt/cloud"
 NAS_IP="${NAS_IP:-192.168.1.30}"
 username="${YOURUSER:-media}"
 password="${YOURPASS:-changeme}"
-domain="${DOMAIN:-WORKGROUP}"
+domain="WORKGROUP"
 ###############################################
 echo "=== Validating environment ==="
 
@@ -24,10 +24,42 @@ if [[ ! -d "$MEDIA_ROOT" ]]; then
   sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
 fi
 
-sudo mkdir -p \
 ###############################################
+# DIRECTORY STRUCTURE
+###############################################
+echo "=== Ensuring directory structure under $MEDIA_ROOT ==="
+
+sudo mkdir -p \
+  "$MEDIA_ROOT/channels-data" \
+  "$MEDIA_ROOT/downloads/tv-sonarr" \
+  "$MEDIA_ROOT/downloads/radarr" \
+  "$MEDIA_ROOT/downloads/watch" \
+  "$MEDIA_ROOT/downloads/incomplete" \
+  "$MEDIA_ROOT/tv" \
+  "$MEDIA_ROOT/movies" \
+  "$MEDIA_ROOT/jackett-config" \
+  "$MEDIA_ROOT/sonarr-config" \
+  "$MEDIA_ROOT/radarr-config"
+
+sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
+
+###############################################
+# CIFS MOUNTS + SMB CREDENTIALS + FSTAB
+###############################################
+echo "=== Configuring CIFS mountpoints and fstab entries ==="
+
+sudo mkdir -p /mnt/cloud-nas /mnt/cloud2-nas
+sudo chown "$MEDIA_USER:$MEDIA_GROUP" /mnt/cloud-nas /mnt/cloud2-nas
+
+if [[ ! -f /etc/smb-cred ]]; then
+  echo "Creating /etc/smb-cred (edit manually)..."
+  sudo tee /etc/smb-cred >/dev/null <<EOF
+username=$username
+password=$password
+domain=$domain
 EOF
   sudo chmod 600 /etc/smb-cred
+fi
 
 if ! grep -q "cloud-nas" /etc/fstab; then
   sudo tee -a /etc/fstab >/dev/null <<EOF
@@ -35,7 +67,15 @@ if ! grep -q "cloud-nas" /etc/fstab; then
 # Parent CIFS shares - add noserverino + cache=loose for safety
 //$NAS_IP/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
 //$NAS_IP/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+
+EOF
 fi
+
+# Only create /mnt/cloud/plexserver symlink if it does not exist
+if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
+  sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
+else
+  echo "/mnt/cloud/plexserver already exists, not creating symlink."
 fi
 
 sudo systemctl daemon-reload
@@ -282,6 +322,21 @@ docker run -d --name=channels-dvr \
   fancybits/channels-dvr:tve
 
 
+###############################################
+# NETATALK CONFIG
+###############################################
+echo "=== Configuring Netatalk (AFP) ==="
+
+sudo mkdir -p /etc/netatalk
+AFPCONF="/etc/netatalk/afp.conf"
+CLOUD_SECTION="[cloud-dvr]"
+CLOUD_PATH="path = /mnt/cloud"
+
+if [ -f "$AFPCONF" ]; then
+  # Only add [cloud-dvr] section if not present
+  if ! grep -q "^\\[cloud-dvr\\]" "$AFPCONF"; then
+    echo "Adding [cloud-dvr] section to $AFPCONF..."
+    sudo tee -a "$AFPCONF" >/dev/null <<EOF
 
 ###############################################
 # SONARR
