@@ -4,7 +4,7 @@ set -euo pipefail
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
-NAS_IP=192.168.1.30
+NAS_IP="${NAS_IP:-192.168.1.30}"
 username="${YOURUSER:-media}"
 password="${YOURPASS:-changeme}"
 domain="${DOMAIN:-WORKGROUP}"
