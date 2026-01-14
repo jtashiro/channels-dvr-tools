@@ -261,7 +261,11 @@ Type=simple
 ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
+
+
 AFPCONF="/etc/netatalk/afp.conf"
+if [ -f "$AFPCONF" ]; then
+  # Only add [cloud-dvr] section if not present
   if ! grep -q "^\[cloud-dvr\]" "$AFPCONF"; then
     echo "Adding [cloud-dvr] section to $AFPCONF..."
     sudo tee -a "$AFPCONF" >/dev/null <<EOF
@@ -279,6 +283,22 @@ EOF
   else
     echo "[cloud-dvr] section with correct path already present in $AFPCONF."
   fi
+else
+  echo "Creating $AFPCONF with [Homes] and [cloud-dvr] sections..."
+  sudo tee "$AFPCONF" >/dev/null <<EOF
+[Homes]
+basedir regex = /home
+follow symlinks = yes
+
+[cloud-dvr]
+path = /mnt/cloud
+follow symlinks = yes
+unix priv = yes
+file perm = 0644
+directory perm = 0755
+EOF
+fi
+
 ###############################################
 # CHANNELS DVR (Docker)
 ###############################################
