@@ -5,9 +5,9 @@ MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
 NAS_IP=192.168.1.30
-username=YOURUSER
-password=YOURPASS
-domain=YOURDOMAIN
+username="${YOURUSER:-media}"
+password="${YOURPASS:-changeme}"
+domain="${DOMAIN:-WORKGROUP}"
 ###############################################
 echo "=== Validating environment ==="
 
