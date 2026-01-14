@@ -16,9 +16,12 @@ if [[ "$(id -un)" != "$MEDIA_USER" ]]; then
   exit 1
 fi
 
+
+# If $MEDIA_ROOT does not exist, create it as root
 if [[ ! -d "$MEDIA_ROOT" ]]; then
-  echo "ERROR: $MEDIA_ROOT does not exist or is not mounted."
-  exit 1
+  echo "$MEDIA_ROOT does not exist, creating as root..."
+  sudo mkdir -p "$MEDIA_ROOT"
+  sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
 fi
 
 ###############################################
@@ -59,6 +62,12 @@ EOF
 fi
 
 if ! grep -q "cloud-nas" /etc/fstab; then
+  # Only create /mnt/cloud/plexserver symlink if it does not exist
+  if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
+    sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
+  else
+    echo "/mnt/cloud/plexserver already exists, not creating symlink."
+  fi
   sudo tee -a /etc/fstab >/dev/null <<EOF
 
 # Parent CIFS shares - add noserverino + cache=loose for safety
@@ -253,6 +262,12 @@ ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
 
+  # Test Docker is running before proceeding
+  if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Docker daemon is not running or not accessible for user $USER."
+    echo "Please ensure Docker is installed, running, and your user is in the docker group."
+    exit 1
+  fi
 sudo systemctl daemon-reload
 sudo systemctl enable transmission-daemon
 sudo systemctl restart transmission-daemon
@@ -278,27 +293,22 @@ docker run -d --name=channels-dvr \
   -v "$MEDIA_ROOT/plexserver:/mnt/cloud/plexserver" \
   fancybits/channels-dvr:tve
 
+
 ###############################################
-# JACKETT
+# NETATALK CONFIG
 ###############################################
-echo "=== Deploying Jackett ==="
+echo "=== Configuring Netatalk (AFP) ==="
 
-docker pull lscr.io/linuxserver/jackett:latest
+sudo mkdir -p /etc/netatalk
+AFPCONF="/etc/netatalk/afp.conf"
+CLOUD_SECTION="[cloud-dvr]"
+CLOUD_PATH="path = /mnt/cloud"
 
-docker stop jackett 2>/dev/null || true
-docker rm jackett 2>/dev/null || true
-
-docker run -d \
-  --name=jackett \
-  --restart=unless-stopped \
-  -e PUID=$(id -u "$MEDIA_USER") \
-  -e PGID=$(id -g "$MEDIA_GROUP") \
-  -e TZ="America/New_York" \
-  -p 9117:9117 \
-  -v "$MEDIA_ROOT/jackett-config:/config" \
-  -v "$MEDIA_ROOT/downloads:/downloads" \
-  -v "$MEDIA_ROOT/plexserver:/mnt/cloud/plexserver" \
-  lscr.io/linuxserver/jackett:latest
+if [ -f "$AFPCONF" ]; then
+  # Only add [cloud-dvr] section if not present
+  if ! grep -q "^\\[cloud-dvr\\]" "$AFPCONF"; then
+    echo "Adding [cloud-dvr] section to $AFPCONF..."
+    sudo tee -a "$AFPCONF" >/dev/null <<EOF
 
 ###############################################
 # SONARR
@@ -307,6 +317,16 @@ echo "=== Deploying Sonarr ==="
 
 docker pull lscr.io/linuxserver/sonarr:latest
 
+  elif ! grep -q "^path = /mnt/cloud" "$AFPCONF"; then
+    echo "[cloud-dvr] section exists but missing path, updating..."
+    sudo sed -i "/^\[cloud-dvr\]/,/^\[/ s|^path =.*|path = /mnt/cloud|" "$AFPCONF"
+  else
+    echo "[cloud-dvr] section with correct path already present in $AFPCONF."
+  fi
+else
+  echo "Creating $AFPCONF with [Homes] and [cloud-dvr] sections..."
+  sudo tee "$AFPCONF" >/dev/null <<EOF
+[Homes]
 docker stop sonarr 2>/dev/null || true
 docker rm sonarr 2>/dev/null || true
 
@@ -317,6 +337,10 @@ docker run -d \
   -e PGID=$(id -g "$MEDIA_GROUP") \
   -e TZ="America/New_York" \
   -p 8989:8989 \
+fi
+
+sudo systemctl enable netatalk
+sudo systemctl restart netatalk
   -v "$MEDIA_ROOT/sonarr-config:/config" \
   -v "$MEDIA_ROOT/tv:/tv" \
   -v "$MEDIA_ROOT/downloads:/downloads" \
