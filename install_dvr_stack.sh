@@ -76,7 +76,6 @@ if ! grep -q "cloud-nas" /etc/fstab; then
 
 EOF
 fi
-sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
 
 sudo systemctl daemon-reload
 sudo mount -a || echo "WARNING: CIFS mounts may not be available until network is up."
