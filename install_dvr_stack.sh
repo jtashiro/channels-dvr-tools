@@ -4,7 +4,11 @@ set -euo pipefail
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
-
+NAS_IP=192.168.1.30
+username=YOURUSER
+password=YOURPASS
+domain=YOURDOMAIN
+###############################################
 echo "=== Validating environment ==="
 
 if [[ "$(id -un)" != "$MEDIA_USER" ]]; then
@@ -30,7 +34,6 @@ sudo mkdir -p \
   "$MEDIA_ROOT/downloads/incomplete" \
   "$MEDIA_ROOT/tv" \
   "$MEDIA_ROOT/movies" \
-  "$MEDIA_ROOT/plexserver" \
   "$MEDIA_ROOT/jackett-config" \
   "$MEDIA_ROOT/sonarr-config" \
   "$MEDIA_ROOT/radarr-config"
@@ -48,9 +51,9 @@ sudo chown "$MEDIA_USER:$MEDIA_GROUP" /mnt/cloud-nas /mnt/cloud2-nas
 if [[ ! -f /etc/smb-cred ]]; then
   echo "Creating /etc/smb-cred (edit manually)..."
   sudo tee /etc/smb-cred >/dev/null <<EOF
-username=YOURUSER
-password=YOURPASS
-domain=YOURDOMAIN
+username=$username
+password=$password
+domain=$domain
 EOF
   sudo chmod 600 /etc/smb-cred
 fi
@@ -59,13 +62,12 @@ if ! grep -q "cloud-nas" /etc/fstab; then
   sudo tee -a /etc/fstab >/dev/null <<EOF
 
 # Parent CIFS shares - add noserverino + cache=loose for safety
-//192.168.1.30/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
-//192.168.1.30/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+//$NAS_IP/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+//$NAS_IP/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
 
-# Bind mount - add _netdev so systemd knows it's network-dependent
-/mnt/cloud-nas/plexserver  /mnt/cloud/plexserver  none  bind,_netdev,nofail 0 0
 EOF
 fi
+sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
 
 sudo systemctl daemon-reload
 sudo mount -a || echo "WARNING: CIFS mounts may not be available until network is up."
@@ -99,7 +101,6 @@ EOF
 
 sudo systemctl enable netatalk
 sudo systemctl restart netatalk
-
 
 ###############################################
 # ENABLE USER NAMESPACES (TVE)
