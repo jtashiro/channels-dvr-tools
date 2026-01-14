@@ -38,6 +38,39 @@ sudo mkdir -p \
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
 
 ###############################################
+# CIFS MOUNTS + SMB CREDENTIALS + FSTAB
+###############################################
+echo "=== Configuring CIFS mountpoints and fstab entries ==="
+
+sudo mkdir -p /mnt/cloud-nas /mnt/cloud2-nas
+sudo chown "$MEDIA_USER:$MEDIA_GROUP" /mnt/cloud-nas /mnt/cloud2-nas
+
+if [[ ! -f /etc/smb-cred ]]; then
+  echo "Creating /etc/smb-cred (edit manually)..."
+  sudo tee /etc/smb-cred >/dev/null <<EOF
+username=YOURUSER
+password=YOURPASS
+domain=YOURDOMAIN
+EOF
+  sudo chmod 600 /etc/smb-cred
+fi
+
+if ! grep -q "cloud-nas" /etc/fstab; then
+  sudo tee -a /etc/fstab >/dev/null <<EOF
+
+# Parent CIFS shares - add noserverino + cache=loose for safety
+//192.168.1.30/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+//192.168.1.30/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+
+# Bind mount - add _netdev so systemd knows it's network-dependent
+/mnt/cloud-nas/plexserver  /mnt/cloud/plexserver  none  bind,_netdev,nofail 0 0
+EOF
+fi
+
+sudo systemctl daemon-reload
+sudo mount -a || echo "WARNING: CIFS mounts may not be available until network is up."
+
+###############################################
 # BASE DEPENDENCIES
 ###############################################
 echo "=== Installing base dependencies ==="
@@ -67,35 +100,6 @@ EOF
 sudo systemctl enable netatalk
 sudo systemctl restart netatalk
 
-###############################################
-# CIFS MOUNTS + SMB CREDENTIALS + FSTAB
-###############################################
-echo "=== Configuring CIFS mountpoints and fstab entries ==="
-
-sudo mkdir -p /mnt/cloud-nas /mnt/cloud2-nas
-sudo chown "$MEDIA_USER:$MEDIA_GROUP" /mnt/cloud-nas /mnt/cloud2-nas
-
-if [[ ! -f /etc/smb-cred ]]; then
-  echo "Creating /etc/smb-cred (edit manually)..."
-  sudo tee /etc/smb-cred >/dev/null <<EOF
-username=YOURUSER
-password=YOURPASS
-domain=YOURDOMAIN
-EOF
-  sudo chmod 600 /etc/smb-cred
-fi
-
-if ! grep -q "cloud-nas" /etc/fstab; then
-  sudo tee -a /etc/fstab >/dev/null <<EOF
-
-# NAS shares
-//192.168.1.30/cloud   /mnt/cloud-nas   cifs   credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino   0   0
-//192.168.1.30/cloud2  /mnt/cloud2-nas  cifs   credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino   0   0
-EOF
-fi
-
-sudo systemctl daemon-reload
-sudo mount -a || echo "WARNING: CIFS mounts may not be available until network is up."
 
 ###############################################
 # ENABLE USER NAMESPACES (TVE)
@@ -165,14 +169,69 @@ if [[ -f "$TRANSMISSION_CONFIG" ]]; then
   --arg dl "$MEDIA_ROOT/downloads" \
   --arg inc "$MEDIA_ROOT/downloads/incomplete" \
   --arg watch "$MEDIA_ROOT/downloads/watch" \
-    '.["download-dir"]=$dl
+    '.
+     | .["download-dir"]=$dl
      | .["incomplete-dir"]=$inc
      | .["incomplete-dir-enabled"]=true
+     | .["alt-speed-enabled"]=false
+     | .["alt-speed-down"]=50
+     | .["alt-speed-up"]=50
+     | .["alt-speed-time-begin"]=540
+     | .["alt-speed-time-day"]=127
+     | .["alt-speed-time-enabled"]=false
+     | .["alt-speed-time-end"]=1020
+     | .["peer-id-ttl-hours"]=6
+     | .["peer-port"]=60875
+     | .["peer-port-random-on-start"]=true
+     | .["peer-port-random-low"]=49152
+     | .["peer-port-random-high"]=65535
+     | .["port-forwarding-enabled"]=true
+     | .["max-peers-global"]=200
+     | .["peer-limit-global"]=200
+     | .["peer-limit-per-torrent"]=50
+     | .["upload-slots-per-torrent"]=0
+     | .["upload-limit"]=0
+     | .["upload-limit-enabled"]=true
+     | .["speed-limit-up"]=0
+     | .["speed-limit-up-enabled"]=true
+     | .["speed-limit-down"]=100
+     | .["speed-limit-down-enabled"]=false
+     | .["download-limit"]=100
+     | .["download-limit-enabled"]=0
+     | .["download-queue-enabled"]=true
+     | .["download-queue-size"]=15
+     | .["seed-queue-enabled"]=false
+     | .["seed-queue-size"]=0
+     | .["idle-seeding-limit"]=0
+     | .["idle-seeding-limit-enabled"]=true
+     | .["ratio-limit"]=0
+     | .["ratio-limit-enabled"]=true
+     | .["rename-partial-files"]=true
+     | .["lpd-enabled"]=false
+     | .["dht-enabled"]=true
+     | .["pex-enabled"]=true
+     | .["utp-enabled"]=true
+     | .["tcp-enabled"]=true
+     | .["preallocation"]=1
+     | .["prefetch-enabled"]=true
+     | .["queue-stalled-enabled"]=true
+     | .["queue-stalled-minutes"]=30
+     | .["scrape-paused-torrents-enabled"]=true
+     | .["start-added-torrents"]=true
+     | .["torrent-added-verify-mode"]="fast"
+     | .["trash-original-torrent-files"]=false
+     | .["umask"]="002"
      | .["rpc-enabled"]=true
      | .["rpc-bind-address"]="0.0.0.0"
      | .["rpc-authentication-required"]=true
      | .["rpc-whitelist-enabled"]=false
      | .["rpc-host-whitelist-enabled"]=false
+     | .["rpc-host-whitelist"]="127.0.0.1,192.168.1.*"
+     | .["rpc-whitelist"]="127.0.0.1,192.168.1.*"
+     | .["rpc-port"]=9091
+     | .["rpc-socket-mode"]="0750"
+     | .["rpc-url"]="/transmission/"
+     | .["rpc-username"]="transmission"
      | .["watch-dir"]=$watch
      | .["watch-dir-enabled"]=true' \
     "$TRANSMISSION_CONFIG" | sudo tee "$TMP_JSON" >/dev/null
@@ -291,8 +350,9 @@ docker run -d \
 ###############################################
 echo
 echo "=== Installation Complete ==="
-echo "Channels DVR: http://<server-ip>:8089"
-echo "Jackett:      http://<server-ip>:9117"
-echo "Sonarr:       http://<server-ip>:8989"
-echo "Radarr:       http://<server-ip>:7878"
-echo "Transmission: http://<server-ip>:9091"
+HOSTNAME_LOCAL="dvr-$(hostname).local"
+echo "Channels DVR: http://$HOSTNAME_LOCAL:8089"
+echo "Jackett:      http://$HOSTNAME_LOCAL:9117"
+echo "Sonarr:       http://$HOSTNAME_LOCAL:8989"
+echo "Radarr:       http://$HOSTNAME_LOCAL:7878"
+echo "Transmission: http://$HOSTNAME_LOCAL:9091"

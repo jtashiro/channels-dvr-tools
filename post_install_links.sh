@@ -92,30 +92,56 @@ push_indexer() {
 
   echo "→ Linking $NAME to $APP_NAME"
 
+
+  # Set categories for Sonarr (TV) and Radarr (Movies)
+  APP_NAME_CLEAN=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
+  # Use custom categories for thepiratebay in Radarr, else defaults
+  if [[ "$APP_NAME_CLEAN" == "radarr" ]]; then
+    if [[ "$NAME" == "thepiratebay" ]]; then
+      # Custom categories for thepiratebay in Radarr
+      CATEGORIES="[2000,2020,2040,2045,100201,100208,100211]"
+    else
+      # Jackett default movie categories: 2000 (Movies), 2010 (HD), 2020 (4K), plus 5030 (HD - TV shows)
+      CATEGORIES="[2000,2010,2020,5030]"
+    fi
+  else
+    # Jackett default TV categories: 5000 (TV), 5030 (HD), 5040 (Anime)
+    CATEGORIES="[5000,5030,5040]"
+  fi
+
   RESPONSE=$(curl -s -X POST "$APP_URL/api/v3/indexer" \
     -H "X-Api-Key: $APP_API" \
     -H "Content-Type: application/json" \
     -d "{
       \"name\": \"$NAME\",
       \"enable\": true,
-      \"protocol\": \"torrent\",
-      \"implementation\": \"Torznab\",
-      \"configContract\": \"TorznabSettings\",
-      \"enableRss\": true,
-      \"enableAutomaticSearch\": true,
-      \"enableInteractiveSearch\": true,
-      \"supportsRss\": true,
-      \"supportsSearch\": true,
-      \"supportsInteractiveSearch\": true,
-      \"priority\": 25,
-      \"tags\": [],
+      \"protocol\": \"torrent\", 
+      \"implementation\": \"Torznab\", 
+      \"configContract\": \"TorznabSettings\", 
+      \"enableRss\": true, 
+      \"enableAutomaticSearch\": true, 
+      \"enableInteractiveSearch\": true, 
+      \"supportsRss\": true, 
+      \"supportsSearch\": true, 
+      \"supportsInteractiveSearch\": true, 
+      \"priority\": 25, 
+      \"tags\": [], 
       \"fields\": [
         { \"name\": \"baseUrl\", \"value\": \"$TORZNAB\" },
-        { \"name\": \"apiKey\", \"value\": \"$JACKETT_API\" }
+        { \"name\": \"apiKey\", \"value\": \"$JACKETT_API\" },
+        { \"name\": \"categories\", \"value\": $CATEGORIES }
       ]
     }")
 
-    # Suppress JSON output
+  APP_NAME_CLEAN_PRINT=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
+  if [[ "$APP_NAME_CLEAN_PRINT" == "radarr" ]]; then
+    echo "  Indexer add response for Radarr:"
+    echo "$RESPONSE"
+    # Basic error check
+    if echo "$RESPONSE" | grep -q 'error' || echo "$RESPONSE" | grep -q 'Exception'; then
+      echo "  [ERROR] Failed to add $NAME to Radarr. See response above."
+    fi
+  fi
 }
 
 ###############################################
