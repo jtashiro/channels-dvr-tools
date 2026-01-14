@@ -260,6 +260,7 @@ Type=simple
 ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
+AFPCONF="/etc/netatalk/afp.conf"
   if ! grep -q "^\[cloud-dvr\]" "$AFPCONF"; then
     echo "Adding [cloud-dvr] section to $AFPCONF..."
     sudo tee -a "$AFPCONF" >/dev/null <<EOF
