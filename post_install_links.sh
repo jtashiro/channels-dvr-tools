@@ -135,11 +135,10 @@ push_indexer() {
 
   APP_NAME_CLEAN_PRINT=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
   if [[ "$APP_NAME_CLEAN_PRINT" == "radarr" ]]; then
-    echo "  Indexer add response for Radarr:"
-    echo "$RESPONSE"
-    # Basic error check
+    # Only print error if present, suppress JSON output
     if echo "$RESPONSE" | grep -q 'error' || echo "$RESPONSE" | grep -q 'Exception'; then
       echo "  [ERROR] Failed to add $NAME to Radarr. See response above."
+      echo "$RESPONSE"
     fi
   fi
 }
@@ -201,7 +200,8 @@ add_transmission_client() {
         { \"name\": \"password\", \"value\": \"$TRANSMISSION_PASS\" },
         { \"name\": \"category\", \"value\": \"$CATEGORY_VALUE\" },
         { \"name\": \"recentPriority\", \"value\": 1 },
-        { \"name\": \"olderPriority\", \"value\": 1 }
+        { \"name\": \"olderPriority\", \"value\": 1 },
+        { \"name\": \"removeCompleted\", \"value\": true }
       ]
     }")
 
