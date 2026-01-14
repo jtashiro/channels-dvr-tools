@@ -62,12 +62,6 @@ EOF
 fi
 
 if ! grep -q "cloud-nas" /etc/fstab; then
-  # Only create /mnt/cloud/plexserver symlink if it does not exist
-  if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
-    sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
-  else
-    echo "/mnt/cloud/plexserver already exists, not creating symlink."
-  fi
   sudo tee -a /etc/fstab >/dev/null <<EOF
 
 # Parent CIFS shares - add noserverino + cache=loose for safety
@@ -75,6 +69,13 @@ if ! grep -q "cloud-nas" /etc/fstab; then
 //$NAS_IP/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
 
 EOF
+fi
+
+# Only create /mnt/cloud/plexserver symlink if it does not exist
+if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
+  sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
+else
+  echo "/mnt/cloud/plexserver already exists, not creating symlink."
 fi
 
 sudo systemctl daemon-reload
