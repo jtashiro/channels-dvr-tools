@@ -260,23 +260,30 @@ Type=simple
 ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
+  if ! grep -q "^\[cloud-dvr\]" "$AFPCONF"; then
+    echo "Adding [cloud-dvr] section to $AFPCONF..."
+    sudo tee -a "$AFPCONF" >/dev/null <<EOF
 
-  # Test Docker is running before proceeding
-  if ! docker info >/dev/null 2>&1; then
-    echo "ERROR: Docker daemon is not running or not accessible for user $USER."
-    echo "Please ensure Docker is installed, running, and your user is in the docker group."
-    exit 1
+[cloud-dvr]
+path = /mnt/cloud
+follow symlinks = yes
+unix priv = yes
+file perm = 0644
+directory perm = 0755
+EOF
+  elif ! grep -q "^path = /mnt/cloud" "$AFPCONF"; then
+    echo "[cloud-dvr] section exists but missing path, updating..."
+    sudo sed -i "/^\[cloud-dvr\]/,/^\[/ s|^path =.*|path = /mnt/cloud|" "$AFPCONF"
+  else
+    echo "[cloud-dvr] section with correct path already present in $AFPCONF."
   fi
-sudo systemctl daemon-reload
-sudo systemctl enable transmission-daemon
-sudo systemctl restart transmission-daemon
-
 ###############################################
 # CHANNELS DVR (Docker)
 ###############################################
 echo "=== Deploying Channels DVR ==="
 
 docker pull fancybits/channels-dvr:tve
+ 
 
 docker stop channels-dvr 2>/dev/null || true
 docker rm channels-dvr 2>/dev/null || true
@@ -285,6 +292,7 @@ docker run -d --name=channels-dvr \
   --restart=unless-stopped \
   --network=host \
   -e TZ="America/New_York" \
+
   -v /opt/channels-dvr:/channels-dvr \
   -v "$MEDIA_ROOT/channels-data:/channels-data" \
   -v "$MEDIA_ROOT/tv:/tv" \
