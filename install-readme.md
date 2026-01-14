@@ -100,14 +100,16 @@ sudo usermod -aG docker media
 
 ## 5. Run Your Install and Post-Install Scripts
 
-- Copy your install script (e.g., for Docker containers) to the server
-- Run as the appropriate user:
+- Copy your install script and post_install script (e.g., for Docker containers) to the server
+- Run as the media user:
   ```bash
-  sudo bash install_script.sh
+  ./install_dvr_stack.sh
   ```
-- Once containers are running (Jackett, Sonarr, Radarr, Transmission), run the post-install script:
+- Once containers are running (Jackett, Sonarr, Radarr, Transmission), configure the Indexer in Jackett:
+
+- After configuring one indexer, run the post-install script:
   ```bash
-  bash ~/post_install_link_jackett.sh
+  bash ~/post_install_links.sh
   ```
   This will link indexers, configure Transmission, and set up remote path mappings automatically.
 
