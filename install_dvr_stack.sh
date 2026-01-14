@@ -293,7 +293,6 @@ docker run -d --name=channels-dvr \
   --restart=unless-stopped \
   --network=host \
   -e TZ="America/New_York" \
-
   -v /opt/channels-dvr:/channels-dvr \
   -v "$MEDIA_ROOT/channels-data:/channels-data" \
   -v "$MEDIA_ROOT/tv:/tv" \
