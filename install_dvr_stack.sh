@@ -9,8 +9,17 @@ username="${YOURUSER:-media}"
 password="${YOURPASS:-changeme}"
 domain="WORKGROUP"
 ###############################################
-echo "=== Validating environment ==="
 
+banner() {
+  echo "==========================================="
+  echo "=== $* 
+  echo "==========================================="
+  echo
+}
+ 
+banner "Starting DVR Stack Installation"
+banner "Ensure you have configured NAS_IP, username, password, and domain variables in the script."
+banner "Validate that the MEDIA_USER ($MEDIA_USER) exists on this system."
 if [[ "$(id -un)" != "$MEDIA_USER" ]]; then
   echo "ERROR: Must run as user '$MEDIA_USER'. Current user: '$(id -un)'."
   exit 1
@@ -27,7 +36,7 @@ fi
 ###############################################
 # DIRECTORY STRUCTURE
 ###############################################
-echo "=== Ensuring directory structure under $MEDIA_ROOT ==="
+banner "=== Ensuring directory structure under $MEDIA_ROOT ==="
 
 sudo mkdir -p \
   "$MEDIA_ROOT/channels-data" \
@@ -46,7 +55,7 @@ sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
 ###############################################
 # CIFS MOUNTS + SMB CREDENTIALS + FSTAB
 ###############################################
-echo "=== Configuring CIFS mountpoints and fstab entries ==="
+banner "=== Configuring CIFS mountpoints and fstab entries ==="
 
 sudo mkdir -p /mnt/cloud-nas /mnt/cloud2-nas
 sudo chown "$MEDIA_USER:$MEDIA_GROUP" /mnt/cloud-nas /mnt/cloud2-nas
@@ -84,14 +93,14 @@ sudo mount -a || echo "WARNING: CIFS mounts may not be available until network i
 ###############################################
 # BASE DEPENDENCIES
 ###############################################
-echo "=== Installing base dependencies ==="
+banner "Installing base dependencies"
 sudo apt update
 sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk
 
 ###############################################
 # NETATALK CONFIG
 ###############################################
-echo "=== Configuring Netatalk (AFP) ==="
+banner "Configuring Netatalk (AFP)"
 
 sudo mkdir -p /etc/netatalk
 
@@ -114,14 +123,14 @@ sudo systemctl restart netatalk
 ###############################################
 # ENABLE USER NAMESPACES (TVE)
 ###############################################
-echo "=== Enabling unprivileged user namespaces ==="
+banner "Enabling unprivileged user namespaces"
 echo "kernel.unprivileged_userns_clone=1" | sudo tee /etc/sysctl.d/99-userns.conf >/dev/null
 sudo sysctl --system >/dev/null || echo "WARNING: sysctl reload failed."
 
 ###############################################
 # INSTALL DOCKER ENGINE
 ###############################################
-echo "=== Installing Docker Engine ==="
+banner "Installing Docker Engine"
 
 sudo apt remove -y docker docker-engine docker.io containerd runc || true
 
@@ -154,7 +163,7 @@ EOF
 ###############################################
 # TRANSMISSION (native)
 ###############################################
-echo "=== Installing Transmission ==="
+banner "Installing Transmission"
 
 if ! dpkg -s transmission-daemon >/dev/null 2>&1; then
   sudo apt install -y transmission-daemon
@@ -298,7 +307,7 @@ fi
 ###############################################
 # CHANNELS DVR (Docker)
 ###############################################
-echo "=== Deploying Channels DVR ==="
+banner "=== Deploying Channels DVR ==="
 
 docker pull fancybits/channels-dvr:tve
  
@@ -344,7 +353,7 @@ docker run -d \
 ###############################################
 # RADARR
 ###############################################
-echo "=== Deploying Radarr ==="
+banner "=== Deploying Radarr ==="
 
 docker pull lscr.io/linuxserver/radarr:latest
 
@@ -368,13 +377,14 @@ docker run -d \
 # DONE
 ###############################################
 echo
-echo "=== Installation Complete ==="
+banner "=== Installation Complete ==="
 HOSTNAME_LOCAL="dvr-$(hostname -s).local"
-echo "Channels DVR: http://$HOSTNAME_LOCAL:8089"
-echo "Jackett:      http://$HOSTNAME_LOCAL:9117"
-echo "Sonarr:       http://$HOSTNAME_LOCAL:8989"
-echo "Radarr:       http://$HOSTNAME_LOCAL:7878"
-echo "Transmission: http://$HOSTNAME_LOCAL:9091"
+DVRHOSTNAME_LOCAL="dvr-$(hostname -s).local"
+echo "Channels DVR: http://$DVRHOSTNAME_LOCAL:8089"
+echo "Jackett:      http://$DVRHOSTNAME_LOCAL:9117"
+echo "Sonarr:       http://$DVRHOSTNAME_LOCAL:8989"
+echo "Radarr:       http://$DVRHOSTNAME_LOCAL:7878"
+echo "Transmission: http://$DVRHOSTNAME_LOCAL:9091"
 
 # Docker container status check
 echo
@@ -386,7 +396,7 @@ docker ps
 # CONFIGURING SONARR/RADARR WITH JACKETT INDEXERS + TRANSMISSION  CLIENT
 ###############################################
 
-echo "=== Using Hostname: $HOSTNAME_LOCAL ==="
+banner "=== Using Hostname: $HOSTNAME_LOCAL ==="
 
 JACKETT_URL="http://$HOSTNAME_LOCAL:9117"
 SONARR_URL="http://$HOSTNAME_LOCAL:8989"
@@ -395,8 +405,7 @@ RADARR_URL="http://$HOSTNAME_LOCAL:7878"
 ###############################################
 # READ API KEYS
 ###############################################
-echo "=== Reading API keys ==="
-
+banner "=== Reading API keys ==="
 JACKETT_API=$(docker exec jackett cat /config/Jackett/ServerConfig.json | jq -r '.APIKey')
 SONARR_API=$(docker exec sonarr cat /config/config.xml | grep -oPm1 "(?<=<ApiKey>)[^<]+")
 RADARR_API=$(docker exec radarr cat /config/config.xml | grep -oPm1 "(?<=<ApiKey>)[^<]+")
@@ -680,7 +689,7 @@ add_root_folder() {
 ###############################################
 # TRANSMISSION → SONARR/RADARR
 ###############################################
-echo "=== Configuring Transmission client in Sonarr and Radarr ==="
+banner "=== Configuring Transmission client in Sonarr and Radarr ==="
 
 delete_existing_download_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 add_transmission_client "Sonarr" "$SONARR_URL" "$SONARR_API"
@@ -697,7 +706,7 @@ echo
 ###############################################
 # REMOTE PATH MAPPINGS
 ###############################################
-echo "=== Adding Remote Path Mappings ==="
+banner "=== Adding Remote Path Mappings ==="
 
 add_remote_path_mapping \
   "Sonarr" "$SONARR_URL" "$SONARR_API" \
@@ -710,6 +719,12 @@ add_remote_path_mapping \
   "/downloads/radarr"
 
 echo
+
+###############################################
+# PROCESS EACH INDEXER
+###############################################
+
+banner "=== Linking Jackett indexers to Sonarr and Radarr ==="
 
 INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
   | grep -E '\.json$' \
@@ -725,10 +740,6 @@ echo "Active indexers:"
 echo "$INDEXER_FILES"
 echo
 
-###############################################
-# PROCESS EACH INDEXER
-###############################################
-echo "=== Linking Jackett indexers to Sonarr and Radarr ==="
 
 for FILE in $INDEXER_FILES; do
   NAME="${FILE%.json}"
