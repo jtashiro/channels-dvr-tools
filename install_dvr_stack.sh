@@ -422,26 +422,6 @@ TRANSMISSION_PASS="transmission"
 ###############################################
 echo "=== Detecting configured Jackett indexers ==="
 
-INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
-  | grep -E '\.json$' \
-  | grep -vE '\.bak$|\.old$|\.disabled$' \
-  || true)
-
-if [[ -z "$INDEXER_FILES" ]]; then
-  echo "No active indexers found in Jackett."
-  echo "Creating indexer"
-  docker exec jackett jackett --addIndexers --indexerIDs "thepiratebay"
-  INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers
-  2>/dev/null \
-    | grep -E '\.json$' \
-    | grep -vE '\.bak$|\.old$|\.disabled$' \
-    || true)  
-
-fi
-
-echo "Active indexers:"
-echo "$INDEXER_FILES"
-echo
 
 ###############################################
 # DELETE EXISTING INDEXER (Sonarr/Radarr)
@@ -734,6 +714,20 @@ add_remote_path_mapping \
   "/mnt/cloud/downloads/radarr" \
   "/downloads/radarr"
 
+echo
+
+INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
+  | grep -E '\.json$' \
+  | grep -vE '\.bak$|\.old$|\.disabled$' \
+  || true)
+
+if [[ -z "$INDEXER_FILES" ]]; then
+  echo "No active indexers found in Jackett."
+  exit 1
+fi
+
+echo "Active indexers:"
+echo "$INDEXER_FILES"
 echo
 
 ###############################################
