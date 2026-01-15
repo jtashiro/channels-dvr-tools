@@ -414,7 +414,7 @@ docker ps
 
 ##!/bin/bash
 #set -euo pipefail
-#export PATH=$PATH:/usr/bin
+export PATH=$PATH:/usr/bin
 
 ###############################################
 # HOSTNAME.local (portable)
@@ -566,8 +566,23 @@ delete_existing_download_client() {
   local APP_API=$3
 
   echo "→ Checking for existing Transmission client in $APP_NAME"
-  EXISTING=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
-    # Suppress JSON output
+  echo "[DEBUG] APP_NAME: $APP_NAME"
+  echo "[DEBUG] APP_URL: $APP_URL"
+  echo "[DEBUG] APP_API: $APP_API"
+  echo "[DEBUG] Running: curl -s \"$APP_URL/api/v3/downloadclient\" -H \"X-Api-Key: $APP_API\""
+  CURL_OUTPUT=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
+  echo "[DEBUG] curl output: $CURL_OUTPUT"
+  EXISTING="$CURL_OUTPUT"
+
+  if [[ -z "$EXISTING" ]]; then
+    echo "[WARN] No response from $APP_NAME API. EXISTING is empty."
+    return
+  fi
+
+  if ! echo "$EXISTING" | jq empty >/dev/null 2>&1; then
+    echo "[ERROR] Response from $APP_NAME API is not valid JSON: $EXISTING"
+    return
+  fi
 
   ID=$(echo "$EXISTING" | jq -r '.[] | select(.implementation=="Transmission") | .id')
 
@@ -577,6 +592,8 @@ delete_existing_download_client() {
       -H "X-Api-Key: $APP_API")
     echo "Delete response:"
     echo "$DELETE_RESPONSE"
+  else
+    echo "[INFO] No Transmission client found in $APP_NAME."
   fi
 }
 
