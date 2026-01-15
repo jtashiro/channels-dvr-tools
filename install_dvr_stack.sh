@@ -10,6 +10,11 @@ password="${YOURPASS:-changeme}"
 domain="WORKGROUP"
 ###############################################
 
+HOSTNAME_LOCAL="$(hostname -s).local"
+HOST_IP=$(hostname -I | awk '{print $1}')
+DVRHOSTNAME_LOCAL="dvr-$(hostname -s).local"
+
+
 banner() {
   echo "==========================================="
   echo "=== $* "
@@ -352,6 +357,7 @@ docker run -d \
   --name=sonarr \
   --restart=unless-stopped \
   --dns="$DNSMASQ_IP" \
+  --add-host "$HOSTNAME_LOCAL:$HOST_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
   -e TZ="America/New_York" \
@@ -376,6 +382,7 @@ docker run -d \
   --name=radarr \
   --restart=unless-stopped \
   --dns="$DNSMASQ_IP" \
+  --add-host "$HOSTNAME_LOCAL:$HOST_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
   -e TZ="America/New_York" \
@@ -394,9 +401,6 @@ echo
 banner "=== Installation Complete ==="
 
 
-HOSTNAME_LOCAL="$(hostname -s).local"
-HOST_IP=$(hostname -I | awk '{print $1}')
-DVRHOSTNAME_LOCAL="dvr-$(hostname -s).local"
 echo "Channels DVR: http://$DVRHOSTNAME_LOCAL:8089"
 echo "Jackett:      http://$DVRHOSTNAME_LOCAL:9117"
 echo "Sonarr:       http://$DVRHOSTNAME_LOCAL:8989"
@@ -576,7 +580,7 @@ add_transmission_client() {
       \"configContract\": \"TransmissionSettings\",
       \"tags\": [],
       \"fields\": [
-        { \"name\": \"host\", \"value\": \"$HOST_IP\" },
+        { \"name\": \"host\", \"value\": \"$HOSTNAME_LOCAL\" },
         { \"name\": \"port\", \"value\": 9091 },
         { \"name\": \"useSsl\", \"value\": false },
         { \"name\": \"urlBase\", \"value\": \"/transmission\" },
@@ -634,7 +638,7 @@ add_remote_path_mapping() {
       return 1
     fi
     echo "  Transmission client ID = $CLIENT_ID"
-    echo "  Host for mapping: $HOST_IP (must match Sonarr/Radarr download client host exactly!)"
+    echo "  Host for mapping: $HOSTNAME_LOCAL (must match Sonarr/Radarr download client host exactly!)"
 
   echo "→ Checking existing Remote Path Mappings"
   EXISTING=$(curl -s "$APP_URL/api/v3/remotepathmapping" -H "X-Api-Key: $APP_API")
