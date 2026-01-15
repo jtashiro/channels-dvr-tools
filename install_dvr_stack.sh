@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure all standard binary locations are in PATH
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
@@ -412,10 +415,6 @@ echo
 echo "=== Docker containers running ==="
 docker ps
 
-##!/bin/bash
-#set -euo pipefail
-export PATH=$PATH:/usr/bin
-
 ###############################################
 # HOSTNAME.local (portable)
 ###############################################
@@ -570,6 +569,7 @@ delete_existing_download_client() {
   echo "[DEBUG] APP_URL: $APP_URL"
   echo "[DEBUG] APP_API: $APP_API"
   echo "[DEBUG] Running: curl -s \"$APP_URL/api/v3/downloadclient\" -H \"X-Api-Key: $APP_API\""
+  which curl
   CURL_OUTPUT=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
   echo "[DEBUG] curl output: $CURL_OUTPUT"
   EXISTING="$CURL_OUTPUT"
