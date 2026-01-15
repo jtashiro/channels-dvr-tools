@@ -412,9 +412,9 @@ echo
 echo "=== Docker containers running ==="
 docker ps
 
-#!/bin/bash
-set -euo pipefail
-export PATH=$PATH:/usr/bin
+##!/bin/bash
+#set -euo pipefail
+#export PATH=$PATH:/usr/bin
 
 ###############################################
 # HOSTNAME.local (portable)
