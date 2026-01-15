@@ -287,22 +287,6 @@ docker run -d --name=channels-dvr \
 
 
 ###############################################
-# NETATALK CONFIG
-###############################################
-echo "=== Configuring Netatalk (AFP) ==="
-
-sudo mkdir -p /etc/netatalk
-AFPCONF="/etc/netatalk/afp.conf"
-CLOUD_SECTION="[cloud-dvr]"
-CLOUD_PATH="path = /mnt/cloud"
-
-if [ -f "$AFPCONF" ]; then
-  # Only add [cloud-dvr] section if not present
-  if ! grep -q "^\\[cloud-dvr\\]" "$AFPCONF"; then
-    echo "Adding [cloud-dvr] section to $AFPCONF..."
-    sudo tee -a "$AFPCONF" >/dev/null <<EOF
-
-###############################################
 # SONARR
 ###############################################
 echo "=== Deploying Sonarr ==="
