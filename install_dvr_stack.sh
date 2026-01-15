@@ -558,47 +558,60 @@ push_indexer() {
 # DELETE EXISTING TRANSMISSION CLIENT
 ###############################################
 delete_existing_download_client() {
-  set -x
   local APP_NAME=$1
   local APP_URL=$2
   local APP_API=$3
 
   echo "→ Checking for existing Transmission client in $APP_NAME"
-  echo "[DEBUG] APP_NAME: $APP_NAME"
-  echo "[DEBUG] APP_URL: $APP_URL"
-  echo "[DEBUG] APP_API: $APP_API"
-  echo "[DEBUG] Running: curl -s \"$APP_URL/api/v3/downloadclient\" -H \"X-Api-Key: $APP_API\""
-  echo $PATH
-  which curl
-  set +e
-  #CURL_OUTPUT=$(/usr/bin/curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
-  
-  /usr/bin/curl -s -S -O temp "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API"
-  set -e
-  echo "[DEBUG] curl output: $CURL_OUTPUT"
-  EXISTING="$CURL_OUTPUT"
+
+  local json_file="/tmp/sarr-downloadclients-${APP_NAME,,}.json"
+
+  # Cleanup previous file (optional but cleaner)
+  rm -f "$json_file"
+
+  if ! curl -s -S --fail \
+    -H "X-Api-Key: $APP_API" \
+    -o "$json_file" \
+    "$APP_URL/api/v3/downloadclient"; then
+
+    local http_code=$?
+    echo "  [ERROR] Failed to get download clients from $APP_NAME"
+    echo "  curl exit code: $http_code"
+    [[ -f "$json_file" ]] && echo "  Response body:" && cat "$json_file"
+    return 1
+  fi
+
+  local EXISTING
+  EXISTING=$(cat "$json_file")
 
   if [[ -z "$EXISTING" ]]; then
-    echo "[WARN] No response from $APP_NAME API. EXISTING is empty."
-    return
+    echo "  [WARN] Empty response from $APP_NAME API"
+    return 1
   fi
 
-  if ! echo "$EXISTING" | jq empty >/dev/null 2>&1; then
-    echo "[ERROR] Response from $APP_NAME API is not valid JSON: $EXISTING"
-    return
+  if ! jq empty <<< "$EXISTING" >/dev/null 2>&1; then
+    echo "  [ERROR] Response is not valid JSON:"
+    echo "  $EXISTING"
+    return 1
   fi
 
-  ID=$(echo "$EXISTING" | jq -r '.[] | select(.implementation=="Transmission") | .id')
+  local ID
+  ID=$(jq -r '.[] | select(.implementation=="Transmission") | .id' <<< "$EXISTING")
 
   if [[ -n "$ID" && "$ID" != "null" ]]; then
-    echo "→ Removing existing Transmission client from $APP_NAME (id=$ID)"
-    DELETE_RESPONSE=$(curl -s -X DELETE "$APP_URL/api/v3/downloadclient/$ID" \
-      -H "X-Api-Key: $APP_API")
-    echo "Delete response:"
-    echo "$DELETE_RESPONSE"
+    echo "  → Removing existing Transmission client (id=$ID)"
+    local DELETE_RESPONSE
+    DELETE_RESPONSE=$(curl -s -S -X DELETE \
+      -H "X-Api-Key: $APP_API" \
+      "$APP_URL/api/v3/downloadclient/$ID")
+
+    echo "  Delete response: $DELETE_RESPONSE"
   else
-    echo "[INFO] No Transmission client found in $APP_NAME."
+    echo "  [INFO] No Transmission download client found"
   fi
+
+  # Optional: cleanup
+  # rm -f "$json_file"
 }
 
 ###############################################
