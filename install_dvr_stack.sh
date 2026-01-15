@@ -33,6 +33,17 @@ if [[ ! -d "$MEDIA_ROOT" ]]; then
   sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT"
 fi
 
+banner "Checking for DNSMASQ service for container DNS configuration"
+# DNSMASQ_IP for custom DNS
+if pgrep dnsmasq >/dev/null 2>&1; then
+  HOST_IP=$(hostname -I | awk '{print $1}')
+  DNSMASQ_IP="$HOST_IP"
+  echo "dnsmasq detected, using host IP $DNSMASQ_IP for container DNS."
+else
+  DNSMASQ_IP="${DNSMASQ_IP:-192.168.1.1}"
+  echo "dnsmasq not detected, using default DNS $DNSMASQ_IP for containers."
+fi
+
 ###############################################
 # DIRECTORY STRUCTURE
 ###############################################
@@ -340,6 +351,7 @@ docker rm sonarr 2>/dev/null || true
 docker run -d \
   --name=sonarr \
   --restart=unless-stopped \
+  --dns="$DNSMASQ_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
   -e TZ="America/New_York" \
@@ -363,6 +375,7 @@ docker rm radarr 2>/dev/null || true
 docker run -d \
   --name=radarr \
   --restart=unless-stopped \
+  --dns="$DNSMASQ_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
   -e TZ="America/New_York" \
@@ -377,8 +390,12 @@ docker run -d \
 # DONE
 ###############################################
 echo
+
 banner "=== Installation Complete ==="
+
+
 HOSTNAME_LOCAL="$(hostname -s).local"
+HOST_IP=$(hostname -I | awk '{print $1}')
 DVRHOSTNAME_LOCAL="dvr-$(hostname -s).local"
 echo "Channels DVR: http://$DVRHOSTNAME_LOCAL:8089"
 echo "Jackett:      http://$DVRHOSTNAME_LOCAL:9117"
@@ -559,7 +576,7 @@ add_transmission_client() {
       \"configContract\": \"TransmissionSettings\",
       \"tags\": [],
       \"fields\": [
-        { \"name\": \"host\", \"value\": \"$HOSTNAME_LOCAL\" },
+        { \"name\": \"host\", \"value\": \"$HOST_IP\" },
         { \"name\": \"port\", \"value\": 9091 },
         { \"name\": \"useSsl\", \"value\": false },
         { \"name\": \"urlBase\", \"value\": \"/transmission\" },
@@ -617,7 +634,7 @@ add_remote_path_mapping() {
       return 1
     fi
     echo "  Transmission client ID = $CLIENT_ID"
-    echo "  Host for mapping: $HOSTNAME_LOCAL (must match Sonarr/Radarr download client host exactly!)"
+    echo "  Host for mapping: $HOST_IP (must match Sonarr/Radarr download client host exactly!)"
 
   echo "→ Checking existing Remote Path Mappings"
   EXISTING=$(curl -s "$APP_URL/api/v3/remotepathmapping" -H "X-Api-Key: $APP_API")
