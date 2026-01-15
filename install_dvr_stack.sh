@@ -293,16 +293,6 @@ echo "=== Deploying Sonarr ==="
 
 docker pull lscr.io/linuxserver/sonarr:latest
 
-  elif ! grep -q "^path = /mnt/cloud" "$AFPCONF"; then
-    echo "[cloud-dvr] section exists but missing path, updating..."
-    sudo sed -i "/^\[cloud-dvr\]/,/^\[/ s|^path =.*|path = /mnt/cloud|" "$AFPCONF"
-  else
-    echo "[cloud-dvr] section with correct path already present in $AFPCONF."
-  fi
-else
-  echo "Creating $AFPCONF with [Homes] and [cloud-dvr] sections..."
-  sudo tee "$AFPCONF" >/dev/null <<EOF
-[Homes]
 docker stop sonarr 2>/dev/null || true
 docker rm sonarr 2>/dev/null || true
 
