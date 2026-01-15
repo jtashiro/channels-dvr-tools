@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-
-# Ensure all standard binary locations are in PATH
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH=$PATH:/usr/bin
 
 MEDIA_USER="media"
 MEDIA_GROUP="media"
