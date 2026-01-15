@@ -541,7 +541,16 @@ delete_existing_download_client() {
 
   echo "→ Checking for existing Transmission client in $APP_NAME"
   EXISTING=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
-    # Suppress JSON output
+
+  if [[ -z "$EXISTING" ]]; then
+    echo "[WARN] No response from $APP_NAME API. EXISTING is empty."
+    return
+  fi
+
+  if ! echo "$EXISTING" | jq empty >/dev/null 2>&1; then
+    echo "[ERROR] Response from $APP_NAME API is not valid JSON: $EXISTING"
+    return
+  fi
 
   ID=$(echo "$EXISTING" | jq -r '.[] | select(.implementation=="Transmission") | .id')
 
@@ -551,6 +560,8 @@ delete_existing_download_client() {
       -H "X-Api-Key: $APP_API")
     echo "Delete response:"
     echo "$DELETE_RESPONSE"
+  else
+    echo "[INFO] No Transmission client found in $APP_NAME."
   fi
 }
 
