@@ -421,10 +421,6 @@ echo
 TRANSMISSION_USER="transmission"
 TRANSMISSION_PASS="transmission"
 
-###############################################
-# DETECT CONFIGURED JACKETT INDEXERS
-###############################################
-echo "=== Detecting configured Jackett indexers ==="
 
 
 ###############################################
@@ -690,7 +686,7 @@ add_root_folder() {
 # TRANSMISSION → SONARR/RADARR
 ###############################################
 banner "=== Configuring Transmission client in Sonarr and Radarr ==="
-
+banner "Sonarr Configuration: $SONARR_URL   API Key: $SONARR_API"
 delete_existing_download_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 add_transmission_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 
@@ -721,11 +717,9 @@ add_remote_path_mapping \
 echo
 
 ###############################################
-# PROCESS EACH INDEXER
+# DETECT CONFIGURED JACKETT INDEXERS
 ###############################################
-
-banner "=== Linking Jackett indexers to Sonarr and Radarr ==="
-
+banner "=== Detecting configured Jackett indexers ==="
 INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
   | grep -E '\.json$' \
   | grep -vE '\.bak$|\.old$|\.disabled$' \
@@ -739,6 +733,12 @@ fi
 echo "Active indexers:"
 echo "$INDEXER_FILES"
 echo
+
+###############################################
+# PROCESS EACH INDEXER
+###############################################
+
+banner "=== Linking Jackett indexers to Sonarr and Radarr ==="
 
 
 for FILE in $INDEXER_FILES; do
