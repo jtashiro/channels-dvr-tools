@@ -558,6 +558,7 @@ push_indexer() {
 # DELETE EXISTING TRANSMISSION CLIENT
 ###############################################
 delete_existing_download_client() {
+  set -x
   local APP_NAME=$1
   local APP_URL=$2
   local APP_API=$3
@@ -567,10 +568,11 @@ delete_existing_download_client() {
   echo "[DEBUG] APP_URL: $APP_URL"
   echo "[DEBUG] APP_API: $APP_API"
   echo "[DEBUG] Running: curl -s \"$APP_URL/api/v3/downloadclient\" -H \"X-Api-Key: $APP_API\""
+  echo $PATH
   which curl
   set +e
   #CURL_OUTPUT=$(/usr/bin/curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
-  set -x
+  
   /usr/bin/curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API"
   set -e
   echo "[DEBUG] curl output: $CURL_OUTPUT"
