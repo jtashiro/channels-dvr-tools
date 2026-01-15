@@ -448,24 +448,7 @@ echo
 TRANSMISSION_USER="transmission"
 TRANSMISSION_PASS="transmission"
 
-###############################################
-# DETECT CONFIGURED JACKETT INDEXERS
-###############################################
-echo "=== Detecting configured Jackett indexers ==="
 
-INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
-  | grep -E '\.json$' \
-  | grep -vE '\.bak$|\.old$|\.disabled$' \
-  || true)
-
-if [[ -z "$INDEXER_FILES" ]]; then
-  echo "No active indexers found in Jackett."
-  exit 1
-fi
-
-echo "Active indexers:"
-echo "$INDEXER_FILES"
-echo
 
 ###############################################
 # DELETE EXISTING INDEXER (Sonarr/Radarr)
@@ -770,57 +753,62 @@ sleep 15
 ###############################################
 # TRANSMISSION → SONARR/RADARR
 ###############################################
-echo "=== Configuring Transmission client in Sonarr and Radarr ==="
+banner "=== Configuring Transmission client and remote path mapping and root folder in Sonarr ==="
 
 delete_existing_download_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 add_transmission_client "Sonarr" "$SONARR_URL" "$SONARR_API"
-
 add_root_folder "Sonarr" "$SONARR_URL" "$SONARR_API" "/tv"
+add_remote_path_mapping "Sonarr" "$SONARR_URL" "$SONARR_API" "/mnt/cloud/downloads/tv-sonarr" "/downloads/tv-sonarr"
+
+banner "=== Configuring Transmission client and remote path mapping and root folder in Radarr ==="
 
 delete_existing_download_client "Radarr" "$RADARR_URL" "$RADARR_API"
 add_transmission_client "Radarr" "$RADARR_URL" "$RADARR_API"
-
 add_root_folder "Radarr" "$RADARR_URL" "$RADARR_API" "/movies"
+add_remote_path_mapping "Radarr" "$RADARR_URL" "$RADARR_API" "/mnt/cloud/downloads/radarr" "/downloads/radarr"
 
 echo
 
 ###############################################
-# REMOTE PATH MAPPINGS
+# DETECT CONFIGURED JACKETT INDEXERS
 ###############################################
-echo "=== Adding Remote Path Mappings ==="
+echo "=== Detecting configured Jackett indexers ==="
 
-add_remote_path_mapping \
-  "Sonarr" "$SONARR_URL" "$SONARR_API" \
-  "/mnt/cloud/downloads/tv-sonarr" \
-  "/downloads/tv-sonarr"
+INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
+  | grep -E '\.json$' \
+  | grep -vE '\.bak$|\.old$|\.disabled$' \
+  || true)
 
-add_remote_path_mapping \
-  "Radarr" "$RADARR_URL" "$RADARR_API" \
-  "/mnt/cloud/downloads/radarr" \
-  "/downloads/radarr"
+if [[ -z "$INDEXER_FILES" ]]; then
+  banner "No active indexers found in Jackett.  Setup and enable indexers in Jackett first.  Then re-run this script to link them to Sonarr and Radarr."
+  
+else
 
-echo
-
-###############################################
-# PROCESS EACH INDEXER
-###############################################
-echo "=== Linking Jackett indexers to Sonarr and Radarr ==="
-
-for FILE in $INDEXER_FILES; do
-  NAME="${FILE%.json}"
-  TORZNAB_URL="$JACKETT_URL/api/v2.0/indexers/$NAME/results/torznab/"
-
-  echo "Indexer: $NAME"
-  echo "Torznab URL: $TORZNAB_URL"
-
-  delete_existing_indexer "Sonarr" "$SONARR_URL" "$SONARR_API" "$NAME"
-  push_indexer "Sonarr" "$SONARR_URL" "$SONARR_API" "$NAME" "$TORZNAB_URL"
-
-  delete_existing_indexer "Radarr" "$RADARR_URL" "$RADARR_API" "$NAME"
-  push_indexer "Radarr" "$RADARR_URL" "$RADARR_API" "$NAME" "$TORZNAB_URL"
-
+  echo "Active indexers:"
+  echo "$INDEXER_FILES"
   echo
-done
+
+  ###############################################
+  # PROCESS EACH INDEXER
+  ###############################################
+  echo "=== Linking Jackett indexers to Sonarr and Radarr ==="
+
+  for FILE in $INDEXER_FILES; do
+    NAME="${FILE%.json}"
+    TORZNAB_URL="$JACKETT_URL/api/v2.0/indexers/$NAME/results/torznab/"
+
+    echo "Indexer: $NAME"
+    echo "Torznab URL: $TORZNAB_URL"
+
+    delete_existing_indexer "Sonarr" "$SONARR_URL" "$SONARR_API" "$NAME"
+    push_indexer "Sonarr" "$SONARR_URL" "$SONARR_API" "$NAME" "$TORZNAB_URL"
+
+    delete_existing_indexer "Radarr" "$RADARR_URL" "$RADARR_API" "$NAME"
+    push_indexer "Radarr" "$RADARR_URL" "$RADARR_API" "$NAME" "$TORZNAB_URL"
+
+    echo
+  done
+fi
 
 echo "=== DONE ==="
 echo "Transmission, Remote Path Mappings, and all Jackett indexers have been refreshed in Sonarr and Radarr."
