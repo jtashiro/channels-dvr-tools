@@ -175,10 +175,99 @@ fi
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR"
 sudo chmod 755 "$USER_CONFIG_DIR"
 
-# Create hard link for settings.json if not present
-if [[ ! -f "$USER_CONFIG_DIR/settings.json" ]]; then
-  sudo ln "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
-fi
+# Write static settings.json as provided by user
+cat <<'EOF' | sudo tee /etc/transmission-daemon/settings.json >/dev/null
+{
+  "alt-speed-down": 50,
+  "alt-speed-enabled": false,
+  "alt-speed-time-begin": 540,
+  "alt-speed-time-day": 127,
+  "alt-speed-time-enabled": false,
+  "alt-speed-time-end": 1020,
+  "alt-speed-up": 50,
+  "announce-ip": "",
+  "announce-ip-enabled": false,
+  "anti-brute-force-enabled": false,
+  "anti-brute-force-threshold": 100,
+  "bind-address-ipv4": "0.0.0.0",
+  "bind-address-ipv6": "::",
+  "blocklist-enabled": false,
+  "blocklist-url": "http://www.example.com/blocklist",
+  "cache-size-mb": 4,
+  "default-trackers": "",
+  "dht-enabled": true,
+  "download-dir": "/mnt/cloud/downloads",
+  "download-limit": 100,
+  "download-limit-enabled": 0,
+  "download-queue-enabled": true,
+  "download-queue-size": 15,
+  "encryption": 1,
+  "idle-seeding-limit": 0,
+  "idle-seeding-limit-enabled": true,
+  "incomplete-dir": "/mnt/cloud/downloads/incomplete",
+  "incomplete-dir-enabled": true,
+  "lpd-enabled": false,
+  "max-peers-global": 200,
+  "message-level": 2,
+  "peer-congestion-algorithm": "",
+  "peer-id-ttl-hours": 6,
+  "peer-limit-global": 200,
+  "peer-limit-per-torrent": 50,
+  "peer-port": 60875,
+  "peer-port-random-high": 65535,
+  "peer-port-random-low": 49152,
+  "peer-port-random-on-start": true,
+  "peer-socket-tos": "le",
+  "pex-enabled": true,
+  "port-forwarding-enabled": true,
+  "preallocation": 1,
+  "prefetch-enabled": true,
+  "queue-stalled-enabled": true,
+  "queue-stalled-minutes": 30,
+  "ratio-limit": 0,
+  "ratio-limit-enabled": true,
+  "rename-partial-files": true,
+  "rpc-authentication-required": true,
+  "rpc-bind-address": "0.0.0.0",
+  "rpc-enabled": true,
+  "rpc-host-whitelist": "127.0.0.1,192.168.1.*",
+  "rpc-host-whitelist-enabled": false,
+  "rpc-password": "{7ac83ea6fd492020b7d5eb7c56e1ec69d30436f3sLShkFQU",
+  "rpc-port": 9091,
+  "rpc-socket-mode": "0750",
+  "rpc-url": "/transmission/",
+  "rpc-username": "transmission",
+  "rpc-whitelist": "127.0.0.1,192.168.1.*",
+  "rpc-whitelist-enabled": false,
+  "scrape-paused-torrents-enabled": true,
+  "script-torrent-added-enabled": false,
+  "script-torrent-added-filename": "",
+  "script-torrent-done-enabled": false,
+  "script-torrent-done-filename": "",
+  "script-torrent-done-seeding-enabled": false,
+  "script-torrent-done-seeding-filename": "",
+  "seed-queue-enabled": false,
+  "seed-queue-size": 0,
+  "speed-limit-down": 100,
+  "speed-limit-down-enabled": false,
+  "speed-limit-up": 0,
+  "speed-limit-up-enabled": true,
+  "start-added-torrents": true,
+  "tcp-enabled": true,
+  "torrent-added-verify-mode": "fast",
+  "trash-original-torrent-files": false,
+  "umask": "002",
+  "upload-limit": 0,
+  "upload-limit-enabled": true,
+  "upload-slots-per-torrent": 0,
+  "utp-enabled": true,
+  "watch-dir": "/mnt/cloud/downloads/watch",
+  "watch-dir-enabled": true
+}
+EOF
+sudo rm -f "$USER_CONFIG_DIR/settings.json"
+sudo ln /etc/transmission-daemon/settings.json "$USER_CONFIG_DIR/settings.json"
+sudo chown "$MEDIA_USER:$MEDIA_GROUP" /etc/transmission-daemon/settings.json "$USER_CONFIG_DIR/settings.json"
 
 if [[ -f "$TRANSMISSION_CONFIG" ]]; then
   TMP_JSON=$(sudo mktemp)
