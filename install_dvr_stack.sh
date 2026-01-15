@@ -170,6 +170,7 @@ USER_CONFIG_DIR="$USER_HOME/.config/transmission-daemon"
 sudo mkdir -p "$USER_CONFIG_DIR"
 if [[ ! -f "$USER_CONFIG_DIR/settings.json" ]]; then
   sudo ln "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
+  sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR/settings.json"
 fi
 
 if [[ -f "$TRANSMISSION_CONFIG" ]]; then
@@ -247,6 +248,7 @@ if [[ -f "$TRANSMISSION_CONFIG" ]]; then
     "$TRANSMISSION_CONFIG" | sudo tee "$TMP_JSON" >/dev/null
 
   sudo mv "$TMP_JSON" "$TRANSMISSION_CONFIG"
+  sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$TRANSMISSION_CONFIG"
 fi
 
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT/downloads"  || true
