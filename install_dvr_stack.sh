@@ -763,6 +763,8 @@ add_root_folder() {
   fi
 }
 
+banner "Waiting 15 seconds for Sonarr and Radarr to fully start..."
+
 sleep 15
 
 ###############################################
