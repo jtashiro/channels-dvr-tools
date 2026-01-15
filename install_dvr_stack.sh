@@ -167,10 +167,17 @@ TRANSMISSION_CONFIG="/etc/transmission-daemon/settings.json"
 # Create hard link for Transmission config in user config directory
 USER_HOME="/home/$MEDIA_USER"
 USER_CONFIG_DIR="$USER_HOME/.config/transmission-daemon"
-sudo mkdir -p "$USER_CONFIG_DIR"
+
+# Ensure $USER_CONFIG_DIR exists and set ownership/permissions
+if [[ ! -d "$USER_CONFIG_DIR" ]]; then
+  sudo mkdir -p "$USER_CONFIG_DIR"
+fi
+sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR"
+sudo chmod 755 "$USER_CONFIG_DIR"
+
+# Create hard link for settings.json if not present
 if [[ ! -f "$USER_CONFIG_DIR/settings.json" ]]; then
   sudo ln "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
-  sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR"
 fi
 
 if [[ -f "$TRANSMISSION_CONFIG" ]]; then
