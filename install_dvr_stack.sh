@@ -271,6 +271,10 @@ ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
 
+sudo systemctl daemon-reload
+sudo systemctl start transmission-daemon || true
+sudo systemctl enable transmission-daemon || true
+echo "Transmission installation and configuration complete."
 
 ###############################################
 # CHANNELS DVR (Docker)
