@@ -383,13 +383,8 @@ docker ps
 
 
 ###############################################
-# HOSTNAME.local (portable)
+# CONFIGURING SONARR/RADARR WITH JACKETT INDEXERS + TRANSMISSION  CLIENT
 ###############################################
-if [[ $# -ge 1 ]]; then
-  HOSTNAME_LOCAL="$1"
-else
-  HOSTNAME_LOCAL="$(hostname).local"
-fi
 
 echo "=== Using Hostname: $HOSTNAME_LOCAL ==="
 
