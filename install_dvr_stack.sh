@@ -708,34 +708,28 @@ add_root_folder() {
 ###############################################
 banner "=== Configuring Transmission client in Sonarr and Radarr ==="
 banner "Sonarr Configuration: $SONARR_URL   API Key: $SONARR_API"
+
 delete_existing_download_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 add_transmission_client "Sonarr" "$SONARR_URL" "$SONARR_API"
-
-add_root_folder "Sonarr" "$SONARR_URL" "$SONARR_API" "/tv"
-
-delete_existing_download_client "Radarr" "$RADARR_URL" "$RADARR_API"
-add_transmission_client "Radarr" "$RADARR_URL" "$RADARR_API"
-
-add_root_folder "Radarr" "$RADARR_URL" "$RADARR_API" "/movies"
-
-echo
-
-###############################################
-# REMOTE PATH MAPPINGS
-###############################################
-banner "=== Adding Remote Path Mappings ==="
-
 add_remote_path_mapping \
   "Sonarr" "$SONARR_URL" "$SONARR_API" \
   "/mnt/cloud/downloads/tv-sonarr" \
   "/downloads/tv-sonarr"
+add_root_folder "Sonarr" "$SONARR_URL" "$SONARR_API" "/tv"
 
+banner "Radarr Configuration: $RADARR_URL   API Key: $RADARR_API"
+
+delete_existing_download_client "Radarr" "$RADARR_URL" "$RADARR_API"
+add_transmission_client "Radarr" "$RADARR_URL" "$RADARR_API"
 add_remote_path_mapping \
   "Radarr" "$RADARR_URL" "$RADARR_API" \
   "/mnt/cloud/downloads/radarr" \
   "/downloads/radarr"
+add_root_folder "Radarr" "$RADARR_URL" "$RADARR_API" "/movies"
 
 echo
+
+
 
 ###############################################
 # DETECT CONFIGURED JACKETT INDEXERS
