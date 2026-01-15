@@ -369,7 +369,7 @@ docker run -d \
 ###############################################
 echo
 echo "=== Installation Complete ==="
-HOSTNAME_LOCAL="dvr-$(hostname).local"
+HOSTNAME_LOCAL="dvr-$(hostname -s).local"
 echo "Channels DVR: http://$HOSTNAME_LOCAL:8089"
 echo "Jackett:      http://$HOSTNAME_LOCAL:9117"
 echo "Sonarr:       http://$HOSTNAME_LOCAL:8989"
