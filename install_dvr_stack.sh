@@ -375,3 +375,8 @@ echo "Jackett:      http://$HOSTNAME_LOCAL:9117"
 echo "Sonarr:       http://$HOSTNAME_LOCAL:8989"
 echo "Radarr:       http://$HOSTNAME_LOCAL:7878"
 echo "Transmission: http://$HOSTNAME_LOCAL:9091"
+
+# Docker container status check
+echo
+echo "=== Docker containers running ==="
+docker ps
