@@ -763,6 +763,7 @@ add_root_folder() {
   fi
 }
 
+sleep 15
 
 ###############################################
 # TRANSMISSION → SONARR/RADARR
