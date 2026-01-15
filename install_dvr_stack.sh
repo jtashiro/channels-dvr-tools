@@ -412,12 +412,20 @@ echo
 echo "=== Docker containers running ==="
 docker ps
 
+#!/bin/bash
+set -euo pipefail
+export PATH=$PATH:/usr/bin
 
 ###############################################
-# CONFIGURING SONARR/RADARR WITH JACKETT INDEXERS + TRANSMISSION  CLIENT
+# HOSTNAME.local (portable)
 ###############################################
+if [[ $# -ge 1 ]]; then
+  HOSTNAME_LOCAL="$1"
+else
+  HOSTNAME_LOCAL="$(hostname -s).local"
+fi
 
-banner "=== Using Hostname: $HOSTNAME_LOCAL ==="
+echo "=== Using Hostname: $HOSTNAME_LOCAL ==="
 
 JACKETT_URL="http://$HOSTNAME_LOCAL:9117"
 SONARR_URL="http://$HOSTNAME_LOCAL:8989"
@@ -426,7 +434,8 @@ RADARR_URL="http://$HOSTNAME_LOCAL:7878"
 ###############################################
 # READ API KEYS
 ###############################################
-banner "=== Reading API keys ==="
+echo "=== Reading API keys ==="
+
 JACKETT_API=$(docker exec jackett cat /config/Jackett/ServerConfig.json | jq -r '.APIKey')
 SONARR_API=$(docker exec sonarr cat /config/config.xml | grep -oPm1 "(?<=<ApiKey>)[^<]+")
 RADARR_API=$(docker exec radarr cat /config/config.xml | grep -oPm1 "(?<=<ApiKey>)[^<]+")
@@ -442,11 +451,11 @@ echo
 TRANSMISSION_USER="transmission"
 TRANSMISSION_PASS="transmission"
 
-
 ###############################################
 # DETECT CONFIGURED JACKETT INDEXERS
 ###############################################
-banner "=== Detecting configured Jackett indexers ==="
+echo "=== Detecting configured Jackett indexers ==="
+
 INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
   | grep -E '\.json$' \
   | grep -vE '\.bak$|\.old$|\.disabled$' \
@@ -460,7 +469,6 @@ fi
 echo "Active indexers:"
 echo "$INDEXER_FILES"
 echo
-
 
 ###############################################
 # DELETE EXISTING INDEXER (Sonarr/Radarr)
@@ -559,16 +567,7 @@ delete_existing_download_client() {
 
   echo "→ Checking for existing Transmission client in $APP_NAME"
   EXISTING=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
-
-  if [[ -z "$EXISTING" ]]; then
-    echo "[WARN] No response from $APP_NAME API. EXISTING is empty."
-    return
-  fi
-
-  if ! echo "$EXISTING" | jq empty >/dev/null 2>&1; then
-    echo "[ERROR] Response from $APP_NAME API is not valid JSON: $EXISTING"
-    return
-  fi
+    # Suppress JSON output
 
   ID=$(echo "$EXISTING" | jq -r '.[] | select(.implementation=="Transmission") | .id')
 
@@ -578,8 +577,6 @@ delete_existing_download_client() {
       -H "X-Api-Key: $APP_API")
     echo "Delete response:"
     echo "$DELETE_RESPONSE"
-  else
-    echo "[INFO] No Transmission client found in $APP_NAME."
   fi
 }
 
@@ -735,37 +732,41 @@ add_root_folder() {
 ###############################################
 # TRANSMISSION → SONARR/RADARR
 ###############################################
-banner "=== Configuring Transmission client in Sonarr and Radarr ==="
-banner "Sonarr Configuration: $SONARR_URL   API Key: $SONARR_API"
+echo "=== Configuring Transmission client in Sonarr and Radarr ==="
 
 delete_existing_download_client "Sonarr" "$SONARR_URL" "$SONARR_API"
 add_transmission_client "Sonarr" "$SONARR_URL" "$SONARR_API"
-add_remote_path_mapping \
-  "Sonarr" "$SONARR_URL" "$SONARR_API" \
-  "/mnt/cloud/downloads/tv-sonarr" \
-  "/downloads/tv-sonarr"
-add_root_folder "Sonarr" "$SONARR_URL" "$SONARR_API" "/tv"
 
-banner "Radarr Configuration: $RADARR_URL   API Key: $RADARR_API"
+add_root_folder "Sonarr" "$SONARR_URL" "$SONARR_API" "/tv"
 
 delete_existing_download_client "Radarr" "$RADARR_URL" "$RADARR_API"
 add_transmission_client "Radarr" "$RADARR_URL" "$RADARR_API"
-add_remote_path_mapping \
-  "Radarr" "$RADARR_URL" "$RADARR_API" \
-  "/mnt/cloud/downloads/radarr" \
-  "/downloads/radarr"
+
 add_root_folder "Radarr" "$RADARR_URL" "$RADARR_API" "/movies"
 
 echo
 
+###############################################
+# REMOTE PATH MAPPINGS
+###############################################
+echo "=== Adding Remote Path Mappings ==="
 
+add_remote_path_mapping \
+  "Sonarr" "$SONARR_URL" "$SONARR_API" \
+  "/mnt/cloud/downloads/tv-sonarr" \
+  "/downloads/tv-sonarr"
+
+add_remote_path_mapping \
+  "Radarr" "$RADARR_URL" "$RADARR_API" \
+  "/mnt/cloud/downloads/radarr" \
+  "/downloads/radarr"
+
+echo
 
 ###############################################
 # PROCESS EACH INDEXER
 ###############################################
-
-banner "=== Linking Jackett indexers to Sonarr and Radarr ==="
-
+echo "=== Linking Jackett indexers to Sonarr and Radarr ==="
 
 for FILE in $INDEXER_FILES; do
   NAME="${FILE%.json}"
