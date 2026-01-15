@@ -327,7 +327,6 @@ fi
 banner "=== Deploying Channels DVR ==="
 
 docker pull fancybits/channels-dvr:tve
- 
 
 docker stop channels-dvr 2>/dev/null || true
 docker rm channels-dvr 2>/dev/null || true
@@ -343,7 +342,33 @@ docker run -d --name=channels-dvr \
   -v "$MEDIA_ROOT/plexserver:/mnt/cloud/plexserver" \
   fancybits/channels-dvr:tve
 
+###############################################
+# JACKETT
+###############################################
+echo "=== Deploying Jackett ==="
 
+docker pull lscr.io/linuxserver/jackett:latest
+
+docker stop jackett 2>/dev/null || true
+docker rm jackett 2>/dev/null || true
+
+docker run -d \
+  --name=jackett \
+  --restart=unless-stopped \
+  --dns="$DNSMASQ_IP" \
+  --dns=192.168.1.1 \
+  --dns=8.8.8.8 \
+  --dns=1.1.1.1 \
+  --add-host "$HOSTNAME_LOCAL:$HOST_IP" \
+  -e PUID=$(id -u "$MEDIA_USER") \
+  -e PGID=$(id -g "$MEDIA_GROUP") \
+  -e TZ="America/New_York" \
+  -p 9117:9117 \
+  -v "$MEDIA_ROOT/jackett-config:/config" \
+  -v "$MEDIA_ROOT/downloads:/downloads" \
+  -v "$MEDIA_ROOT/plexserver:/mnt/cloud/plexserver" \
+  lscr.io/linuxserver/jackett:latest
+  
 ###############################################
 # SONARR
 ###############################################
@@ -358,6 +383,9 @@ docker run -d \
   --name=sonarr \
   --restart=unless-stopped \
   --dns="$DNSMASQ_IP" \
+  --dns=192.168.1.1 \
+  --dns=8.8.8.8 \
+  --dns=1.1.1.1 \
   --add-host "$HOSTNAME_LOCAL:$HOST_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
@@ -383,6 +411,9 @@ docker run -d \
   --name=radarr \
   --restart=unless-stopped \
   --dns="$DNSMASQ_IP" \
+  --dns=192.168.1.1 \
+  --dns=8.8.8.8 \
+  --dns=1.1.1.1 \
   --add-host "$HOSTNAME_LOCAL:$HOST_IP" \
   -e PUID=$(id -u "$MEDIA_USER") \
   -e PGID=$(id -g "$MEDIA_GROUP") \
@@ -400,7 +431,6 @@ docker run -d \
 echo
 
 banner "=== Installation Complete ==="
-
 
 echo "Channels DVR: http://$DVRHOSTNAME_LOCAL:8089"
 echo "Jackett:      http://$DVRHOSTNAME_LOCAL:9117"
@@ -448,8 +478,6 @@ echo
 TRANSMISSION_USER="transmission"
 TRANSMISSION_PASS="transmission"
 
-
-
 ###############################################
 # DELETE EXISTING INDEXER (Sonarr/Radarr)
 ###############################################
@@ -485,7 +513,6 @@ push_indexer() {
   local TORZNAB=$5
 
   echo "→ Linking $NAME to $APP_NAME"
-
 
   # Set categories for Sonarr (TV) and Radarr (Movies)
   APP_NAME_CLEAN=$(echo "$APP_NAME" | awk '{print tolower($0)}' | xargs)
@@ -746,6 +773,9 @@ add_root_folder() {
   fi
 }
 
+###############################################
+# WAIT FOR SONARR AND RADARR TO START
+###############################################
 banner "Waiting 15 seconds for Sonarr and Radarr to fully start..."
 
 sleep 15
