@@ -571,7 +571,7 @@ delete_existing_download_client() {
   echo "[DEBUG] Running: curl -s \"$APP_URL/api/v3/downloadclient\" -H \"X-Api-Key: $APP_API\""
   which curl
   set +e
-  CURL_OUTPUT=$(curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
+  CURL_OUTPUT=$(/usr/bin/curl -s "$APP_URL/api/v3/downloadclient" -H "X-Api-Key: $APP_API")
   set -e
   echo "[DEBUG] curl output: $CURL_OUTPUT"
   EXISTING="$CURL_OUTPUT"
