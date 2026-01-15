@@ -443,6 +443,24 @@ TRANSMISSION_USER="transmission"
 TRANSMISSION_PASS="transmission"
 
 
+###############################################
+# DETECT CONFIGURED JACKETT INDEXERS
+###############################################
+banner "=== Detecting configured Jackett indexers ==="
+INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
+  | grep -E '\.json$' \
+  | grep -vE '\.bak$|\.old$|\.disabled$' \
+  || true)
+
+if [[ -z "$INDEXER_FILES" ]]; then
+  echo "No active indexers found in Jackett."
+  exit 1
+fi
+
+echo "Active indexers:"
+echo "$INDEXER_FILES"
+echo
+
 
 ###############################################
 # DELETE EXISTING INDEXER (Sonarr/Radarr)
@@ -741,24 +759,6 @@ add_root_folder "Radarr" "$RADARR_URL" "$RADARR_API" "/movies"
 echo
 
 
-
-###############################################
-# DETECT CONFIGURED JACKETT INDEXERS
-###############################################
-banner "=== Detecting configured Jackett indexers ==="
-INDEXER_FILES=$(docker exec jackett ls /config/Jackett/Indexers 2>/dev/null \
-  | grep -E '\.json$' \
-  | grep -vE '\.bak$|\.old$|\.disabled$' \
-  || true)
-
-if [[ -z "$INDEXER_FILES" ]]; then
-  echo "No active indexers found in Jackett."
-  exit 1
-fi
-
-echo "Active indexers:"
-echo "$INDEXER_FILES"
-echo
 
 ###############################################
 # PROCESS EACH INDEXER
