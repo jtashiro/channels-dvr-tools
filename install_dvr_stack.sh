@@ -729,6 +729,29 @@ add_root_folder() {
   fi
 }
 
+
+###############################################
+# RADARR CONFIGURATION DEBUG & WAIT
+###############################################
+echo "[DEBUG] HOSTNAME_LOCAL: $HOSTNAME_LOCAL"
+echo "[DEBUG] RADARR_URL: $RADARR_URL"
+echo "[DEBUG] RADARR_API: $RADARR_API"
+echo "[DEBUG] Checking Radarr API readiness..."
+
+for i in {1..20}; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$RADARR_URL/api/v3/system/status" -H "X-Api-Key: $RADARR_API")
+  if [[ "$STATUS" == "200" ]]; then
+    echo "[DEBUG] Radarr API is ready."
+    break
+  fi
+  echo "[DEBUG] Waiting for Radarr API... ($i)"
+  sleep 2
+done
+if [[ "$STATUS" != "200" ]]; then
+  echo "[ERROR] Radarr API is not responding after waiting. Aborting configuration."
+  exit 1
+fi
+
 ###############################################
 # TRANSMISSION → SONARR/RADARR
 ###############################################
