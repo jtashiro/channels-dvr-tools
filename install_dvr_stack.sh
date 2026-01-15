@@ -170,7 +170,7 @@ USER_CONFIG_DIR="$USER_HOME/.config/transmission-daemon"
 sudo mkdir -p "$USER_CONFIG_DIR"
 if [[ ! -f "$USER_CONFIG_DIR/settings.json" ]]; then
   sudo ln "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
-  sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR/settings.json"
+  sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR"
 fi
 
 if [[ -f "$TRANSMISSION_CONFIG" ]]; then
