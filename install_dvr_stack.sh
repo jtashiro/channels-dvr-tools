@@ -176,7 +176,7 @@ sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$USER_CONFIG_DIR"
 sudo chmod 755 "$USER_CONFIG_DIR"
 
 # Write static settings.json as provided by user
-cat <<'EOF' | sudo tee /etc/transmission-daemon/settings.json >/dev/null
+cat <<'EOF' | sudo tee $TRANSMISSION_CONFIG >/dev/null
 {
   "alt-speed-down": 50,
   "alt-speed-enabled": false,
@@ -266,87 +266,8 @@ cat <<'EOF' | sudo tee /etc/transmission-daemon/settings.json >/dev/null
 }
 EOF
 sudo rm -f "$USER_CONFIG_DIR/settings.json"
-sudo ln /etc/transmission-daemon/settings.json "$USER_CONFIG_DIR/settings.json"
-sudo chown "$MEDIA_USER:$MEDIA_GROUP" /etc/transmission-daemon/settings.json "$USER_CONFIG_DIR/settings.json"
-
-if [[ -f "$TRANSMISSION_CONFIG" ]]; then
-  TMP_JSON=$(sudo mktemp)
-
-  sudo jq \
-  --arg dl "$MEDIA_ROOT/downloads" \
-  --arg inc "$MEDIA_ROOT/downloads/incomplete" \
-  --arg watch "$MEDIA_ROOT/downloads/watch" \
-    '.
-     | .["download-dir"]=$dl
-     | .["incomplete-dir"]=$inc
-     | .["incomplete-dir-enabled"]=true
-     | .["alt-speed-enabled"]=false
-     | .["alt-speed-down"]=50
-     | .["alt-speed-up"]=50
-     | .["alt-speed-time-begin"]=540
-     | .["alt-speed-time-day"]=127
-     | .["alt-speed-time-enabled"]=false
-     | .["alt-speed-time-end"]=1020
-     | .["peer-id-ttl-hours"]=6
-     | .["peer-port"]=60875
-     | .["peer-port-random-on-start"]=true
-     | .["peer-port-random-low"]=49152
-     | .["peer-port-random-high"]=65535
-     | .["port-forwarding-enabled"]=true
-     | .["max-peers-global"]=200
-     | .["peer-limit-global"]=200
-     | .["peer-limit-per-torrent"]=50
-     | .["upload-slots-per-torrent"]=0
-     | .["upload-limit"]=0
-     | .["upload-limit-enabled"]=true
-     | .["speed-limit-up"]=0
-     | .["speed-limit-up-enabled"]=true
-     | .["speed-limit-down"]=100
-     | .["speed-limit-down-enabled"]=false
-     | .["download-limit"]=100
-     | .["download-limit-enabled"]=0
-     | .["download-queue-enabled"]=true
-     | .["download-queue-size"]=15
-     | .["seed-queue-enabled"]=false
-     | .["seed-queue-size"]=0
-     | .["idle-seeding-limit"]=0
-     | .["idle-seeding-limit-enabled"]=true
-     | .["ratio-limit"]=0
-     | .["ratio-limit-enabled"]=true
-     | .["rename-partial-files"]=true
-     | .["lpd-enabled"]=false
-     | .["dht-enabled"]=true
-     | .["pex-enabled"]=true
-     | .["utp-enabled"]=true
-     | .["tcp-enabled"]=true
-     | .["preallocation"]=1
-     | .["prefetch-enabled"]=true
-     | .["queue-stalled-enabled"]=true
-     | .["queue-stalled-minutes"]=30
-     | .["scrape-paused-torrents-enabled"]=true
-     | .["start-added-torrents"]=true
-     | .["torrent-added-verify-mode"]="fast"
-     | .["trash-original-torrent-files"]=false
-     | .["umask"]="002"
-     | .["rpc-enabled"]=true
-     | .["rpc-bind-address"]="0.0.0.0"
-     | .["rpc-authentication-required"]=true
-     | .["rpc-whitelist-enabled"]=false
-     | .["rpc-host-whitelist-enabled"]=false
-     | .["rpc-host-whitelist"]="127.0.0.1,192.168.1.*"
-     | .["rpc-whitelist"]="127.0.0.1,192.168.1.*"
-     | .["rpc-port"]=9091
-     | .["rpc-socket-mode"]="0750"
-     | .["rpc-url"]="/transmission/"
-     | .["rpc-username"]="transmission"
-     | .["watch-dir"]=$watch
-     | .["watch-dir-enabled"]=true' \
-    "$TRANSMISSION_CONFIG" | sudo tee "$TMP_JSON" >/dev/null
-
-  sudo mv "$TMP_JSON" "$TRANSMISSION_CONFIG"
-  sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$TRANSMISSION_CONFIG"
-fi
-
+sudo ln $TRANSMISSION_CONFIG "$USER_CONFIG_DIR/settings.json"
+sudo chown "$MEDIA_USER:$MEDIA_GROUP" "$TRANSMISSION_CONFIG" "$USER_CONFIG_DIR/settings.json"
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" "$MEDIA_ROOT/downloads"  || true
 sudo chown -R "$MEDIA_USER:$MEDIA_GROUP" /var/lib/transmission-daemon 2>/dev/null || true
 
@@ -360,10 +281,19 @@ ExecStart=
 ExecStart=/usr/bin/transmission-daemon -f --log-error
 EOF
 
+
 sudo systemctl daemon-reload
 sudo systemctl start transmission-daemon || true
 sudo systemctl enable transmission-daemon || true
 echo "Transmission installation and configuration complete."
+
+# Check transmission-daemon status
+echo "=== Checking transmission-daemon status ==="
+trans_status=$(sudo systemctl status transmission-daemon | grep Active)
+echo "$trans_status"
+if echo "$trans_status" | grep -q -E 'inactive|dead'; then
+  echo "WARNING: transmission-daemon is not running (status: $trans_status)"
+fi
 
 ###############################################
 # CHANNELS DVR (Docker)
