@@ -126,10 +126,10 @@ sudo apt install -y curl wget jq ca-certificates gnupg software-properties-commo
 # Install Webmin
 banner "Installing Webmin (web-based admin UI)"
 
-# Securely install Webmin using the official .deb package
-WEBMIN_DEB_URL="https://prdownloads.sourceforge.net/webadmin/webmin_2.101_all.deb"
+# Securely install the latest Webmin .deb package
 TMP_DEB="/tmp/webmin.deb"
-wget -O "$TMP_DEB" "$WEBMIN_DEB_URL"
+LATEST_DEB_URL=$(curl -s https://sourceforge.net/projects/webadmin/files/webmin/ | grep -Eo 'https://prdownloads.sourceforge.net/webadmin/webmin_[0-9.]+_all.deb' | head -1)
+wget -O "$TMP_DEB" "$LATEST_DEB_URL"
 sudo apt install -y perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl libapt-pkg-perl
 sudo dpkg -i "$TMP_DEB" || sudo apt-get install -f -y
 rm -f "$TMP_DEB"
