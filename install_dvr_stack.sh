@@ -2,16 +2,12 @@
 set -euo pipefail
 export PATH=$PATH:/usr/bin
 
-# Check if user is in 'docker' group
-if ! id -nG "$USER" | grep -qw "docker"; then
-  echo "Error: You are not in the 'docker' group. Please run 'newgrp docker' and restart this script."
-  exit 1
-fi
 
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
 NAS_HOST="${NAS_HOST:-nas.local}"
+TIMEZONE="America/New_York"  # Set your timezone here
 username="${YOURUSER:-media}"
 password="${YOURPASS:-changeme}"
 domain="WORKGROUP"
@@ -36,7 +32,11 @@ if [[ "$(id -un)" != "$MEDIA_USER" ]]; then
   echo "ERROR: Must run as user '$MEDIA_USER'. Current user: '$(id -un)'."
   exit 1
 fi
-
+# Check if user is in 'docker' group
+if ! id -nG "$USER" | grep -qw "docker"; then
+  echo "Error: You are not in the 'docker' group. Please run 'newgrp docker' and restart this script."
+  exit 1
+fi
 
 # If $MEDIA_ROOT does not exist, create it as root
 if [[ ! -d "$MEDIA_ROOT" ]]; then
@@ -121,7 +121,11 @@ sudo mount -a || echo "WARNING: CIFS mounts may not be available until network i
 ###############################################
 banner "Installing base dependencies"
 sudo apt update
-sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk
+sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk avahi-daemon mergerfs
+
+# Set system timezone
+sudo timedatectl set-timezone "$TIMEZONE"
+timedatectl status
 
 ###############################################
 # NETATALK CONFIG

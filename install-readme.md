@@ -11,7 +11,7 @@ This guide walks you through installing Ubuntu Server, creating a dedicated medi
 
 ---
 
-## 1. Install Ubuntu Server
+### Step 1: Install Ubuntu Server
 
 ### a. Download Ubuntu ISO
 - Go to: [ubuntu.com/download/server](https://ubuntu.com/download/server)
@@ -46,7 +46,7 @@ sudo reboot
 
 ---
 
-## 2. Create a Dedicated Media User
+### Step 2: Create a Dedicated Media User
 
 For security, run media services as a non-root user.
 
@@ -70,25 +70,35 @@ sudo adduser media
 
 ---
 
-## 3. Install avahi-daemon for .local Hostnames
 
-This enables mDNS so you can use `hostname.local` in scripts.
+### Step 3: Prepare for Automated Setup
 
-```bash
-sudo apt update
-sudo apt install avahi-daemon -y
-sudo systemctl start avahi-daemon
-sudo systemctl enable avahi-daemon
-sudo systemctl status avahi-daemon  # Should show 'active (running)'
-```
-- Test from another machine:
-  ```bash
-  ping $(hostname).local
-  ```
+Your install script will automatically:
+- Install avahi-daemon, cifs-utils, mergerfs
+- Set your system timezone
+- Enable avahi-daemon for .local hostnames
+
+No manual package installation is required.
+
+
 
 ---
 
-## 4. (Optional) Install Docker
+
+
+
+
+---
+
+
+After install, test .local hostname resolution from another machine:
+```bash
+ping $(hostname).local
+```
+
+---
+
+### Step 4 (Optional): Install Docker
 If your install script sets up Docker, you may need to install it first:
 ```bash
 sudo apt install docker.io docker-compose -y
@@ -98,15 +108,15 @@ sudo usermod -aG docker media
 
 ---
 
-## 5. Run Your Install and Post-Install Scripts
+
+### Step 5: Run Your Install and Post-Install Scripts
 
 - Copy your install script and post_install script (e.g., for Docker containers) to the server
 - Run as the media user:
   ```bash
   ./install_dvr_stack.sh
   ```
-- Once containers are running (Jackett, Sonarr, Radarr, Transmission), configure the Indexer in Jackett:
-
+- Once containers are running (Jackett, Sonarr, Radarr, Transmission), configure the Indexer in Jackett
 - After configuring one indexer, run the post-install script:
   ```bash
   bash ~/post_install_links.sh
