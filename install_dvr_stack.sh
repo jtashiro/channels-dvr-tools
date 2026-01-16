@@ -87,6 +87,8 @@ EOF
   sudo chmod 600 /etc/smb-cred
 fi
 
+# Only add fstab entries if not already present
+if ! grep -q "cloud-nas" /etc/fstab; then
   MEDIA_UID=$(id -u "$MEDIA_USER")
   MEDIA_GID=$(id -g "$MEDIA_GROUP")
   sudo tee -a /etc/fstab >/dev/null <<EOF
