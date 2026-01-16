@@ -2,6 +2,12 @@
 set -euo pipefail
 export PATH=$PATH:/usr/bin
 
+# Check if user is in 'docker' group
+if ! id -nG "$USER" | grep -qw "docker"; then
+  echo "Error: You are not in the 'docker' group. Please run 'newgrp docker' and restart this script."
+  exit 1
+fi
+
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
@@ -100,12 +106,12 @@ if ! grep -q "cloud-nas" /etc/fstab; then
 EOF
 fi
 
-# Only create /mnt/cloud/plexserver symlink if it does not exist
-if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
-  sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
-else
-  echo "/mnt/cloud/plexserver already exists, not creating symlink."
-fi
+## Only create /mnt/cloud/plexserver symlink if it does not exist
+#if [ ! -L /mnt/cloud/plexserver ] && [ ! -e /mnt/cloud/plexserver ]; then
+#  sudo ln -s /mnt/cloud-nas/plexserver/ /mnt/cloud/plexserver
+#else
+#  echo "/mnt/cloud/plexserver already exists, not creating symlink."
+#fi
 
 sudo systemctl daemon-reload
 sudo mount -a || echo "WARNING: CIFS mounts may not be available until network is up."
