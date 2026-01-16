@@ -85,11 +85,11 @@ echo "Mirroring /opt/channels-dvr to NAS via rsync..."
 rsync -avh --delete $DRY /opt/channels-dvr/ \
     "${TARGET}:${NAS_BASE}/${SOURCE}/channels-dvr"
 
+echo "Restarting Channels DVR..."
+docker start channels-dvr
+
 echo "Mirroring channels-data to NAS via rsync..."
 rsync -avh --delete $DRY "${CHANNELS_DATA}/" \
     "${TARGET}:${NAS_BASE}/${SOURCE}/channels-data"
-
-echo "Restarting Channels DVR..."
-docker start channels-dvr
 
 echo "============= BACKUP COMPLETED $(date) ==============="
