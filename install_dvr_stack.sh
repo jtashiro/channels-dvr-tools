@@ -128,22 +128,18 @@ banner "Installing Webmin (web-based admin UI)"
 
 # Securely install the latest Webmin .deb package
 TMP_DEB="/tmp/webmin.deb"
-LATEST_DEB_URL=$(curl -s https://sourceforge.net/projects/webadmin/files/webmin/ | grep -Eo 'https://prdownloads.sourceforge.net/webadmin/webmin_[0-9.]+_all.deb' | head -1)
-if [ -z "$LATEST_DEB_URL" ]; then
-  echo "ERROR: Could not find latest Webmin .deb URL. Skipping Webmin installation."
-else
-  if wget -O "$TMP_DEB" "$LATEST_DEB_URL"; then
-    sudo apt install -y perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl libapt-pkg-perl
-    if sudo dpkg -i "$TMP_DEB"; then
-      echo "Webmin installed successfully."
-    else
-      echo "WARNING: Webmin .deb install failed. Attempting to fix dependencies."
-      sudo apt-get install -f -y || echo "ERROR: Could not fix dependencies for Webmin."
-    fi
-    rm -f "$TMP_DEB"
+LATEST_DEB_URL="https://prdownloads.sourceforge.net/webadmin/webmin_2.620_all.deb"
+if wget -O "$TMP_DEB" "$LATEST_DEB_URL"; then
+  sudo apt install -y perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl libapt-pkg-perl
+  if sudo dpkg -i "$TMP_DEB"; then
+    echo "Webmin installed successfully."
   else
-    echo "ERROR: Failed to download Webmin .deb package. Skipping Webmin installation."
+    echo "WARNING: Webmin .deb install failed. Attempting to fix dependencies."
+    sudo apt-get install -f -y || echo "ERROR: Could not fix dependencies for Webmin."
   fi
+  rm -f "$TMP_DEB"
+else
+  echo "ERROR: Failed to download Webmin .deb package. Skipping Webmin installation."
 fi
 
 # Set system timezone
