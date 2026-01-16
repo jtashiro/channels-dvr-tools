@@ -125,11 +125,14 @@ sudo apt install -y curl wget jq ca-certificates gnupg software-properties-commo
 
 # Install Webmin
 banner "Installing Webmin (web-based admin UI)"
-sudo apt install -y software-properties-common apt-transport-https
-wget -qO - https://download.webmin.com/jcameron-key.asc | sudo apt-key add -
-sudo add-apt-repository "deb https://download.webmin.com/download/repository sarge contrib"
-sudo apt update
-sudo apt install -y webmin
+
+# Securely install Webmin using the official .deb package
+WEBMIN_DEB_URL="https://prdownloads.sourceforge.net/webadmin/webmin_2.101_all.deb"
+TMP_DEB="/tmp/webmin.deb"
+wget -O "$TMP_DEB" "$WEBMIN_DEB_URL"
+sudo apt install -y perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl libapt-pkg-perl
+sudo dpkg -i "$TMP_DEB" || sudo apt-get install -f -y
+rm -f "$TMP_DEB"
 
 # Set system timezone
 sudo timedatectl set-timezone "$TIMEZONE"
