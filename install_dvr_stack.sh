@@ -777,9 +777,30 @@ add_root_folder() {
 ###############################################
 # WAIT FOR SONARR AND RADARR TO START
 ###############################################
-banner "Waiting 15 seconds for Sonarr and Radarr to fully start..."
+banner "Enter the Indexer in the JACKETT application:  $JACKETT_URL ..."
 
-sleep 15
+banner "Press enter when Indexer setup in Jackett is complete and Sonarr/Radarr are running..."
+read -r
+echo "Waiting for Sonarr and Radarr to be reachable..."
+for SERVICE_NAME in "Sonarr" "Radarr"; do
+  SERVICE_URL=""
+  if [[ "$SERVICE_NAME" == "Sonarr" ]]; then
+    SERVICE_URL="$SONARR_URL"
+  else
+    SERVICE_URL="$RADARR_URL"
+  fi
+
+  for i in {1..30}; do
+    if curl -s --head --fail "$SERVICE_URL" >/dev/null; then
+      echo "$SERVICE_NAME is reachable at $SERVICE_URL"
+      break
+    else
+      echo "Waiting for $SERVICE_NAME to start..."
+      sleep 2
+    fi
+  done
+done
+
 
 ###############################################
 # TRANSMISSION → SONARR/RADARR
