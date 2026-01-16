@@ -177,6 +177,8 @@ echo "=== Refreshing docker group membership for this session ==="
 newgrp docker <<EOF
 echo "Docker group activated."
 EOF
+newgrp docker
+
 
 ###############################################
 # TRANSMISSION (native)
