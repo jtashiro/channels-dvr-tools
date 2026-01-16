@@ -5,7 +5,7 @@ export PATH=$PATH:/usr/bin
 MEDIA_USER="media"
 MEDIA_GROUP="media"
 MEDIA_ROOT="/mnt/cloud"
-NAS_IP="${NAS_IP:-192.168.1.30}"
+NAS_HOST="${NAS_HOST:-nas.local}"
 username="${YOURUSER:-media}"
 password="${YOURPASS:-changeme}"
 domain="WORKGROUP"
@@ -87,12 +87,13 @@ EOF
   sudo chmod 600 /etc/smb-cred
 fi
 
-if ! grep -q "cloud-nas" /etc/fstab; then
+  MEDIA_UID=$(id -u "$MEDIA_USER")
+  MEDIA_GID=$(id -g "$MEDIA_GROUP")
   sudo tee -a /etc/fstab >/dev/null <<EOF
 
 # Parent CIFS shares - add noserverino + cache=loose for safety
-//$NAS_IP/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
-//$NAS_IP/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=1001,gid=1001,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+//$NAS_HOST/cloud  /mnt/cloud-nas  cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=$MEDIA_UID,gid=$MEDIA_GID,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
+//$NAS_HOST/cloud2 /mnt/cloud2-nas cifs  credentials=/etc/smb-cred,vers=3.1.1,uid=$MEDIA_UID,gid=$MEDIA_GID,nofail,x-systemd.automount,x-systemd.idle-timeout=30,_netdev,noserverino,cache=loose 0 0
 
 EOF
 fi
