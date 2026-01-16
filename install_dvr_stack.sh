@@ -123,6 +123,14 @@ banner "Installing base dependencies"
 sudo apt update
 sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk avahi-daemon mergerfs
 
+# Install Webmin
+banner "Installing Webmin (web-based admin UI)"
+sudo apt install -y software-properties-common apt-transport-https
+wget -qO - https://download.webmin.com/jcameron-key.asc | sudo apt-key add -
+sudo add-apt-repository "deb https://download.webmin.com/download/repository sarge contrib"
+sudo apt update
+sudo apt install -y webmin
+
 # Set system timezone
 sudo timedatectl set-timezone "$TIMEZONE"
 timedatectl status
