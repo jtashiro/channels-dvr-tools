@@ -179,7 +179,6 @@ echo "=== Refreshing docker group membership for this session ==="
 newgrp docker <<EOF
 echo "Docker group activated."
 EOF
-newgrp docker
 
 
 ###############################################
@@ -795,11 +794,12 @@ for SERVICE_NAME in "Sonarr" "Radarr"; do
   fi
 
   for i in {1..30}; do
-    if curl -s --head --fail "$SERVICE_URL" >/dev/null; then
-      echo "$SERVICE_NAME is reachable at $SERVICE_URL"
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --head "$SERVICE_URL")
+    if [[ "$HTTP_CODE" != "000" ]]; then
+      echo "$SERVICE_NAME is reachable at $SERVICE_URL (HTTP $HTTP_CODE)"
       break
     else
-      echo "Waiting for $SERVICE_NAME to start..."
+      echo "Waiting for $SERVICE_NAME $SERVICE_URL to start... (HTTP $HTTP_CODE)"
       sleep 2
     fi
   done
