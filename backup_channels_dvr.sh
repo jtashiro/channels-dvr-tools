@@ -6,8 +6,8 @@ SOURCE="$(hostname -s).local"
 NAS_BASE="/mnt/cloud/CHANNELS_DVR_BACKUP"
 CHANNELS_DATA="/mnt/cloud/channels-data"
 DRY="${1:-}"
-LOCKFILE="$HOME/.channels-backup.lock"
-
+LOGFILE="/dev/shm/channels-monitor.log"
+LOCKFILE="/run/channels-backup/.channels-backup.lock"
 
 # Always restart Channels DVR no matter what happens
 restart() {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CONTAINER="channels-dvr"
-LOCKFILE="/home/media/.channels-backup.lock"
+LOCKFILE="/run/channels-backup/.channels-backup.lock"
 LOGFILE="/dev/shm/channels-monitor.log"
 
 timestamp() {
