@@ -3,7 +3,7 @@ set -euo pipefail
 
 CONTAINER="channels-dvr"
 LOCKFILE="/home/media/.channels-backup.lock"
-LOGFILE="/home/media/logs/channels-monitor.log"
+LOGFILE="/dev/shm/channels-monitor.log"
 
 timestamp() {
     date +"%Y-%m-%d %H:%M:%S"
