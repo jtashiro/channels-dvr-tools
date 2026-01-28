@@ -121,7 +121,7 @@ sudo mount -a || echo "WARNING: CIFS mounts may not be available until network i
 ###############################################
 banner "Installing base dependencies"
 sudo apt update
-sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk avahi-daemon mergerfs
+sudo apt install -y curl wget jq ca-certificates gnupg software-properties-common cifs-utils netatalk avahi-daemon mergerfs net-tools
 
 # Install Webmin
 banner "Installing Webmin (web-based admin UI)"
@@ -365,7 +365,7 @@ docker stop channels-dvr 2>/dev/null || true
 docker rm channels-dvr 2>/dev/null || true
 
 docker run -d --name=channels-dvr \
-  --restart=unless-stopped \
+  --restart=always \
   --network=host \
   -e TZ="America/New_York" \
   -v /opt/channels-dvr:/channels-dvr \
@@ -387,7 +387,7 @@ docker rm jackett 2>/dev/null || true
 
 docker run -d \
   --name=jackett \
-  --restart=unless-stopped \
+  --restart=always \
   --dns="$DNSMASQ_IP" \
   --dns=192.168.1.1 \
   --dns=8.8.8.8 \
@@ -414,7 +414,7 @@ docker rm sonarr 2>/dev/null || true
 
 docker run -d \
   --name=sonarr \
-  --restart=unless-stopped \
+  --restart=always \
   --dns="$DNSMASQ_IP" \
   --dns=192.168.1.1 \
   --dns=8.8.8.8 \
@@ -442,7 +442,7 @@ docker rm radarr 2>/dev/null || true
 
 docker run -d \
   --name=radarr \
-  --restart=unless-stopped \
+  --restart=always \
   --dns="$DNSMASQ_IP" \
   --dns=192.168.1.1 \
   --dns=8.8.8.8 \
