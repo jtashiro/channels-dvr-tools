@@ -343,17 +343,22 @@ if __name__ == "__main__":
 
     # Configure email, allowing sender-password from environment variable SMTP_PASS
     sender_password = args.sender_password or os.environ.get('SMTP_PASS')
-    if all([args.smtp_server, args.sender_email, sender_password, args.recipient_email]):
-        DVR.set_email_config(
-            args.smtp_server,
-            args.smtp_port,
-            args.sender_email,
-            sender_password,
-            args.recipient_email
-        )
-        print('Email notifications enabled.')
-    elif any([args.smtp_server, args.sender_email, args.sender_password, args.recipient_email]):
-        print('Warning: Incomplete email configuration. All email parameters required. Email notifications disabled.')
+    # Only warn if any required argument except password is missing
+    required_args = [args.smtp_server, args.sender_email, args.recipient_email]
+    if all(required_args):
+        if sender_password:
+            DVR.set_email_config(
+                args.smtp_server,
+                args.smtp_port,
+                args.sender_email,
+                sender_password,
+                args.recipient_email
+            )
+            print('Email notifications enabled.')
+        else:
+            print('Warning: Email password not provided via --sender-password or SMTP_PASS. Email notifications disabled.')
+    elif any(required_args):
+        print('Warning: Incomplete email configuration. All email parameters except password are required. Email notifications disabled.')
 
     tve_channels = DVR.get_tve_channels()
 
