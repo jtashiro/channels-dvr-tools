@@ -341,13 +341,14 @@ if __name__ == "__main__":
 
     DVR = ChannelsDVRServer(ip_address, port_number, args.log_file)
 
-    # Configure email if all email arguments are provided
-    if all([args.smtp_server, args.sender_email, args.sender_password, args.recipient_email]):
+    # Configure email, allowing sender-password from environment variable SMTP_PASS
+    sender_password = args.sender_password or os.environ.get('SMTP_PASS')
+    if all([args.smtp_server, args.sender_email, sender_password, args.recipient_email]):
         DVR.set_email_config(
             args.smtp_server,
             args.smtp_port,
             args.sender_email,
-            args.sender_password,
+            sender_password,
             args.recipient_email
         )
         print('Email notifications enabled.')
